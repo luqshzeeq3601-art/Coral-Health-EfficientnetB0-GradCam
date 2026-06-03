@@ -1,7 +1,21 @@
 # Virtual environment
 .venv/
+.venv*/
 venv/
+venv*/
 env/
+env*/
+.venv310/
+.venv310_nopip/
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# Temporary directories
+.tmp.drivedownload/
+.tmp.driveupload/
+
 
 # Python cache
 __pycache__/
@@ -65,3 +79,10 @@ logs/
 
 # MCP Local settings
 .mcp.json
+
+# Scratch and test files
+cookies.txt
+get-pip.py
+test.py
+test_*.bat
+

@@ -26,7 +26,7 @@ def compute_gradcam(model, img_array, class_idx, layer_name='top_conv', img_size
     """
     Generate Grad-CAM heatmap for the given model and image.
     This visualizes WHY the model predicted a specific class.
-    
+
     Args:
         model: The full Sequential model.
         img_array: Input image (no batch dimension).
@@ -141,12 +141,12 @@ def compute_gradcam(model, img_array, class_idx, layer_name='top_conv', img_size
         heatmap = tf.squeeze(heatmap)
         heatmap = tf.nn.relu(heatmap)
         heatmap = heatmap.numpy()
-    
+
     heatmap = cv2.resize(heatmap, (img_size, img_size), interpolation=cv2.INTER_LINEAR)
-    
+
     if np.max(heatmap) > 0:
         heatmap = heatmap / np.max(heatmap)
-        
+
     return heatmap
 
 def create_overlay(original_img, heatmap, alpha=0.4):
@@ -154,7 +154,7 @@ def create_overlay(original_img, heatmap, alpha=0.4):
     heatmap_colored = cv2.applyColorMap(np.uint8(255 * heatmap), cv2.COLORMAP_JET)
     heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
     img_uint8 = np.uint8(original_img) if original_img.max() > 1.0 else np.uint8(255 * original_img)
-    
+
     overlay = cv2.addWeighted(img_uint8, 1 - alpha, heatmap_colored, alpha, 0)
     return overlay
 
@@ -171,7 +171,7 @@ def numpy_to_base64(img_array):
         img_array = (img_array * 255).astype(np.uint8)
     else:
         img_array = img_array.astype(np.uint8)
-    
+
     img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR) # Convert to BGR for encoding
     _, buffer = cv2.imencode('.png', img_bgr)
     return base64.b64encode(buffer).decode('utf-8')
@@ -189,6 +189,13 @@ MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '02_M
 METRICS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '03_Model_Evaluation', 'Validation_Data', '02_Deployment_Phase')
 MODEL_BASE_DIR = os.path.dirname(MODEL_DIR)
 OUTPUTS_DIR = os.path.join(MODEL_BASE_DIR, 'outputs')
+# Separate standalone baseline model (frozen-backbone EfficientNetB0, head-only).
+# Used for the "Base Model" mode instead of an ensemble seed.
+BASELINE_MODEL_PATH = os.path.normpath(os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), '..',
+    '05_Baseline_Model', 'models',
+    'efficientnetb0_baseline.weights.h5'
+))
 # Canonical root location (written by current audit_v4_robust.py)
 ROBUST_AUDIT_CSV = os.path.normpath(os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -207,6 +214,7 @@ LOADED_FOLDS = []
 ENSEMBLE_WEIGHTS = None
 TEMPERATURE = 1.0
 BASE_MODEL = None
+BASE_MODEL_INFO = 'EfficientNetB0 Baseline (frozen backbone)'
 
 
 def softmax(logits):
@@ -271,13 +279,35 @@ def build_model():
     base_model.trainable = True
     for layer in base_model.layers[:-100]:
         layer.trainable = False
-        
+
     model = Sequential([
         Input(shape=(IMG_SIZE, IMG_SIZE, 3)),
         base_model,
         GlobalAveragePooling2D(),
         Dropout(0.6),
         Dense(3, activation='softmax', kernel_regularizer=tf.keras.regularizers.l2(0.0001))
+    ])
+    return model
+
+def build_baseline_model():
+    """Rebuild the standalone baseline architecture to match 05_Baseline_Model/train_baseline.py.
+
+    Frozen EfficientNetB0 backbone + GAP + Dense(3) head only — NO Dropout, NO L2.
+    This must match exactly so `load_weights()` on efficientnetb0_baseline.weights.h5 maps cleanly.
+
+    NOTE: weights='imagenet' is required (not None). The training script built it with
+    imagenet weights, which initializes EfficientNet's internal Normalization layer
+    buffers; building with weights=None leaves those buffers unset and the weight load
+    fails ("objects could not be loaded" on the Normalization layer).
+    """
+    base_model = EfficientNetB0(include_top=False, weights='imagenet', input_shape=(IMG_SIZE, IMG_SIZE, 3))
+    base_model.trainable = False  # frozen backbone (head-only baseline)
+
+    model = Sequential([
+        Input(shape=(IMG_SIZE, IMG_SIZE, 3)),
+        base_model,
+        GlobalAveragePooling2D(),
+        Dense(3, activation='softmax')
     ])
     return model
 
@@ -322,7 +352,7 @@ def load_models():
     for fold in FOLDS:
         # Load V4 Robust Seeds
         model_path = os.path.join(MODEL_DIR, f"efficientnetb0_v4robust_seed{fold}_swa.h5")
-        
+
 
         if os.path.exists(model_path):
             try:
@@ -345,24 +375,56 @@ def load_models():
 
 
 def load_base_model():
-    """Load single EfficientNetB0 (seed 42) for base-model mode."""
-    global BASE_MODEL
-    model_path = os.path.join(MODEL_DIR, 'efficientnetb0_v4robust_seed42_swa.h5')
-    if os.path.exists(model_path):
+    """Load the standalone baseline model (frozen-backbone EfficientNetB0) for base-model mode.
+
+    Uses 05_Baseline_Model/outputs/baseline_model/efficientnetb0_baseline.weights.h5.
+    Falls back to ensemble seed 42 if the dedicated baseline weights are unavailable.
+    """
+    global BASE_MODEL, BASE_MODEL_INFO
+    if os.path.exists(BASELINE_MODEL_PATH):
         try:
-            model = build_model()
-            model.load_weights(model_path)
+            # The baseline backbone is FROZEN ImageNet (only the Dense(3) head was trained),
+            # so weights='imagenet' reproduces the backbone exactly. The .weights.h5 was saved
+            # with Keras 2.10 (old HDF5 layout) which Keras 3 can't load topologically, so we
+            # read the trained Dense head directly via h5py and inject it.
+            import h5py
+            model = build_baseline_model()
+            with h5py.File(BASELINE_MODEL_PATH, 'r') as f:
+                kernel = np.array(f['dense']['dense']['kernel:0'])  # (1280, 3)
+                bias = np.array(f['dense']['dense']['bias:0'])      # (3,)
+            model.layers[-1].set_weights([kernel, bias])
             model.compile(
                 optimizer='adam',
                 loss='categorical_crossentropy',
                 metrics=['accuracy']
             )
             BASE_MODEL = model
-            print(f"  [OK] Base model loaded: seed42")
+            BASE_MODEL_INFO = 'EfficientNetB0 Baseline (frozen backbone)'
+            print(f"  [OK] Base model loaded: standalone baseline (frozen ImageNet backbone + trained head)")
+            return
         except Exception as e:
-            print(f"  [FAIL] Base model: {e}")
+            print(f"  [FAIL] Standalone baseline load failed, will try seed42 fallback: {e}")
     else:
-        print(f"  [SKIP] Base model not found at {model_path}")
+        print(f"  [SKIP] Standalone baseline weights not found at {BASELINE_MODEL_PATH}")
+
+    # Fallback: reuse ensemble seed 42 so base mode still works.
+    fallback_path = os.path.join(MODEL_DIR, 'efficientnetb0_v4robust_seed42_swa.h5')
+    if os.path.exists(fallback_path):
+        try:
+            model = build_model()
+            model.load_weights(fallback_path)
+            model.compile(
+                optimizer='adam',
+                loss='categorical_crossentropy',
+                metrics=['accuracy']
+            )
+            BASE_MODEL = model
+            BASE_MODEL_INFO = 'EfficientNetB0 Base (seed 42 fallback)'
+            print(f"  [OK] Base model loaded: seed42 (fallback)")
+        except Exception as e:
+            print(f"  [FAIL] Base model fallback: {e}")
+    else:
+        print(f"  [SKIP] Base model fallback not found at {fallback_path}")
 
 
 def image_file_to_base64(path):
@@ -567,34 +629,49 @@ def get_deployment_audit_metrics():
 # Routes
 # ============================================================
 
+# Built React SPA (Coral AI Landing Page) lives here; see frontend/ dir.
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend')
+
 @app.route('/')
 def home():
-    return render_template('design9.html')
+    # New production home = the built React landing page.
+    return send_from_directory(FRONTEND_DIR, 'index.html')
 
 @app.route('/coral_health')
 def coral_health():
+    return send_from_directory(FRONTEND_DIR, 'index.html')
+
+@app.route('/design9')
+def design9_legacy():
+    # Previous production template, kept reachable for reference.
     return render_template('design9.html')
 
-@app.route('/gradcam3d')
-def gradcam3d():
-    return render_template('design9_gradcam3d.html')
+# Note: routes /design10 and /design11 are commented out as design10.html and design11.html
+# templates are not present in the codebase.
+#
+# @app.route('/design10')
+# def design10():
+#     return render_template('design10.html')
+#
+# @app.route('/design11')
+# def design11():
+#     return render_template('design11.html')
 
-@app.route('/template5h')
-def template5h():
-    return render_template('design7.html')
 
-@app.route('/pastel')
-def pastel_template():
-    return render_template('design4.html')
+@app.route('/<path:filename>')
+def frontend_assets(filename):
+    """Serve the built React SPA's root-level files (assets/, logos, favicon, etc.).
 
-@app.route('/modern')
-def modern_template():
-    return render_template('design2.html')
-
-@app.route('/old')
-def old_template():
-    return render_template('design6.html')
-
+    Registered API and design routes are literal and take priority over this
+    path-converter rule, so this only catches files that belong to the SPA bundle.
+    `/static/...` is still handled by Flask's built-in static handler.
+    """
+    if filename.startswith('api/'):
+        return jsonify({'error': 'Not found'}), 404
+    full_path = os.path.join(FRONTEND_DIR, filename)
+    if os.path.isfile(full_path):
+        return send_from_directory(FRONTEND_DIR, filename)
+    return jsonify({'error': 'Not found'}), 404
 
 
 @app.route('/api/health', methods=['GET'])
@@ -726,6 +803,7 @@ def fallback_chat_response(message, prediction_context=None):
 
 def generate_gemini_reply(message, history, prediction_context):
     from google import genai
+    from google.genai import types
 
     api_key = os.environ.get('GEMINI_API_KEY')
     if not api_key:
@@ -746,7 +824,17 @@ def generate_gemini_reply(message, history, prediction_context):
         "Answer in 1-3 short paragraphs."
     )
 
-    response = client.models.generate_content(model=model, contents=prompt)
+    config = types.GenerateContentConfig(safety_settings=[
+        types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_ONLY_HIGH"),
+        types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_ONLY_HIGH"),
+        types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_ONLY_HIGH"),
+        types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_ONLY_HIGH")
+    ])
+    response = client.models.generate_content(  # noqa # type: ignore
+        model=model,
+        contents=prompt,
+        config=config
+    )
     reply = trim_chat_text(getattr(response, 'text', ''), 2000)
     if not reply:
         raise RuntimeError('Gemini returned an empty response')
@@ -785,17 +873,17 @@ def chat():
 def get_phase_metrics(directory, phase_prefix):
     """Helper to load metrics for a specific phase (Research/Deployment)."""
     results = {}
-    
+
     # Files are named like 'research_phase_...' or 'final_...'
     # We need to handle this prefix difference or just look for the files we know exist.
     # Based on file organization:
     # Research: research_phase_confusion_matrix.png, research_phase_classification_report_heatmap.png
     # Deployment: final_confusion_matrix.png, final_classification_report.csv, final_summary.txt
-    
+
     # Common Maps
     # We'll look for specific likely filenames based on the phase prefix
     # "research_phase" or "final"
-    
+
     # 1. Classification Report Parser
     report_txt = os.path.join(directory, "classification_report_ensemble.txt")
     if os.path.exists(report_txt):
@@ -822,7 +910,7 @@ def get_phase_metrics(directory, phase_prefix):
             results['classification_report'] = data
         except Exception as e:
             print("Error parsing classification report:", e)
-        
+
     # Set prefixes/names based on phase
     if 'research' in phase_prefix:
         cm_name = "research_phase_confusion_matrix.png"
@@ -860,7 +948,7 @@ def get_phase_metrics(directory, phase_prefix):
     if os.path.exists(history_path):
         with open(history_path, "rb") as image_file:
                 results['training_history'] = base64.b64encode(image_file.read()).decode('utf-8')
-                
+
     # 4. Summary Text
     summary_path = os.path.join(directory, f"classification_report_ensemble.txt")
     if os.path.exists(summary_path):
@@ -878,7 +966,7 @@ def get_phase_metrics(directory, phase_prefix):
                 }
             except:
                 pass
-    
+
     # Research Phase — read from training outputs (authoritative benchmark, not hardcoded)
     if 'research' in phase_prefix:
         research_report_path = os.path.join(OUTPUTS_DIR, "classification_report_ensemble.txt")
@@ -947,7 +1035,7 @@ def get_metrics():
         BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '03_Model_Evaluation')
         RESEARCH_DIR = os.path.join(BASE_DIR, "01_Research_Phase")
         legacy_deployment_dir = OUTPUTS_DIR
-        
+
         if debug_mode:
             print(f"DEBUG: BASE_DIR = {BASE_DIR}")
             print(f"DEBUG: LEGACY_DEPLOYMENT_DIR = {legacy_deployment_dir}")
@@ -957,14 +1045,14 @@ def get_metrics():
         deployment_metrics = get_deployment_audit_metrics()
         if deployment_metrics is None:
             deployment_metrics = get_phase_metrics(legacy_deployment_dir, "final")
-            
+
         results = {
             "research": get_phase_metrics(RESEARCH_DIR, "research_phase"),
             "deployment": deployment_metrics
         }
-        
+
         # --- NEW METRICS INTEGRATION FOR TABBED UI ---
-        
+
         # 1. Baseline Model
         baseline_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '05_Baseline_Model', 'outputs', 'baseline_model')
         baseline_data = {}
@@ -973,7 +1061,7 @@ def get_metrics():
                 baseline_data = json.load(f)
         except:
             pass
-        
+
         baseline_hist_data = []
         try:
             with open(os.path.join(baseline_dir, "training_history.json"), "r") as f:
@@ -989,14 +1077,14 @@ def get_metrics():
                     })
         except:
             pass
-            
+
         baseline_cm = None
         try:
             with open(os.path.join(baseline_dir, "confusion_matrix.png"), "rb") as f:
                 baseline_cm = base64.b64encode(f.read()).decode('utf-8')
         except:
             pass
-            
+
         _baseline_support = {"Healthy": 72, "Bleached": 72, "Dead": 15}
         results["baseline"] = {
             "model_info": {
@@ -1033,7 +1121,7 @@ def get_metrics():
                 [1, 2, 12]
             ]
         }
-        
+
         # 2. Architecture Comparison
         arch_dir = os.path.join(BASE_DIR, "02_Architecture_Comparison")
         arch_data = {}
@@ -1042,7 +1130,7 @@ def get_metrics():
                 arch_data = json.load(f)
         except:
             pass
-            
+
         results["architecture_comparison"] = {
             "summary": arch_data
         }
@@ -1056,7 +1144,7 @@ def get_metrics():
                     results["architecture_comparison"][key] = base64.b64encode(f.read()).decode('utf-8')
             except:
                 results["architecture_comparison"][key] = None
-        
+
         # 3. Ensemble (shallow-copy deployment so mutations don't alias back)
         _dep = results.get("deployment") or {}
         ens = dict(_dep)
@@ -1085,10 +1173,10 @@ def get_metrics():
             results["ensemble"]["training_history_data"] = ens_hist_data
         except:
             pass
-            
+
         if debug_mode:
              print(f"DEBUG: Loaded results keys: {results.keys()}")
-        
+
         def sanitize_json(obj):
             if isinstance(obj, dict):
                 return {k: sanitize_json(v) for k, v in obj.items()}
@@ -1111,7 +1199,7 @@ def predict():
     """Main prediction endpoint. Accepts image upload."""
     if 'file' not in request.files and 'image' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
-    
+
     file = request.files.get('file') or request.files.get('image')
     if file.filename == '':
         return jsonify({'error': 'No file selected'}), 400
@@ -1204,12 +1292,14 @@ def predict():
             # Temperature scaling calibration
             avg_preds = temperature_scale_from_probs(avg_preds, TEMPERATURE)
         else:
-            # ── FEAT-01: Base model path ──
+            # ── FEAT-01: Base model path (standalone baseline) ──
+            # Single forward pass, NO TTA and NO temperature scaling — the baseline
+            # model was trained/evaluated on raw softmax, so we report it as-is.
             img_float = img_resized.astype('float32')
             single_pred = BASE_MODEL.predict(
                 np.expand_dims(img_float, axis=0), verbose=0
             )[0]
-            avg_preds = temperature_scale_from_probs(single_pred, TEMPERATURE)
+            avg_preds = single_pred
             individual_results = []
             debug_preprocessing = []
 
@@ -1262,7 +1352,7 @@ def predict():
         status_definitions = {
             'Healthy': {
                 'severity': 'Good',
-                'icon': '🟢', 
+                'icon': '🟢',
                 'description': 'Coral appears healthy with normal coloration and structure.',
                 'recommendation': 'Maintain monitoring schedule.'
             },
@@ -1279,7 +1369,7 @@ def predict():
                 'recommendation': 'Document mortality and assess recovery potential.'
             }
         }
-        
+
         current_status = status_definitions.get(final_label, {})
 
         # EXPERT MODE: calibrated threshold
@@ -1299,7 +1389,7 @@ def predict():
         notes = []
         if final_conf < CONFIDENCE_THRESHOLD:
             notes.append("Moderate confidence prediction. Manual review recommended.")
-        
+
         # Check for disagreement
         votes = [res['prediction'] for res in individual_results]
         if len(set(votes)) > 1:
@@ -1318,7 +1408,7 @@ def predict():
             'model_used': (
                 'EfficientNetB0 SWA Ensemble (5-seed)'
                 if use_ensemble else
-                'EfficientNetB0 Base (seed 42)'
+                BASE_MODEL_INFO
             ),
         }
 
@@ -1344,10 +1434,10 @@ def compute_simulation_gradcam_and_activations(model, img_array, class_idx):
         if 'efficientnet' in layer.name.lower():
             efficientnet = layer
             break
-            
+
     if efficientnet is None:
         return None
-        
+
     try:
         target_layer = efficientnet.get_layer('top_conv')
     except Exception:
@@ -1356,7 +1446,7 @@ def compute_simulation_gradcam_and_activations(model, img_array, class_idx):
             if isinstance(layer, tf.keras.layers.Conv2D):
                 target_layer = layer
                 break
-                
+
     if target_layer is None:
         return None
 
@@ -1365,7 +1455,7 @@ def compute_simulation_gradcam_and_activations(model, img_array, class_idx):
         inputs=efficientnet.input,
         outputs=target_layer.output
     )
-    
+
     try:
         top_bn = efficientnet.get_layer('top_bn')
         top_activation = efficientnet.get_layer('top_activation')
@@ -1376,13 +1466,13 @@ def compute_simulation_gradcam_and_activations(model, img_array, class_idx):
     img_batch = tf.cast(np.expand_dims(img_array, axis=0), tf.float32)
     conv_outputs_value = grad_model_part1(img_batch)
     conv_outputs = tf.Variable(conv_outputs_value, trainable=True, dtype=tf.float32)
-    
+
     eff_index = -1
     for i, layer in enumerate(model.layers):
         if layer == efficientnet:
             eff_index = i
             break
-            
+
     with tf.GradientTape() as tape:
         x = conv_outputs
         if has_top_layers:
@@ -1396,18 +1486,18 @@ def compute_simulation_gradcam_and_activations(model, img_array, class_idx):
                     x = layer(x)
         model_outputs = x
         loss = model_outputs[:, class_idx]
-        
+
     grads = tape.gradient(loss, conv_outputs)
     if grads is None:
         return None
-        
+
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2)).numpy()
     conv_out = conv_outputs[0].numpy()  # (7, 7, 1280)
-    
+
     # Calculate channel mean activations to pick the top 6 highest-activated channels
     mean_activations = np.mean(conv_out, axis=(0, 1))  # (1280,)
     top_6_indices = np.argsort(mean_activations)[::-1][:6].tolist()
-    
+
     channels_data = []
     for rank, idx in enumerate(top_6_indices):
         fmap = conv_out[:, :, idx]
@@ -1417,14 +1507,14 @@ def compute_simulation_gradcam_and_activations(model, img_array, class_idx):
             fmap_norm = (fmap - fmap_min) / (fmap_max - fmap_min)
         else:
             fmap_norm = np.zeros_like(fmap)
-            
+
         # Resize activation map up to 224x224 input space
         fmap_resized = cv2.resize(fmap_norm, (224, 224), interpolation=cv2.INTER_LINEAR)
         fmap_uint8 = np.uint8(fmap_resized * 255)
-        
+
         _, buffer = cv2.imencode('.png', fmap_uint8)
         fmap_b64 = base64.b64encode(buffer).decode('utf-8')
-        
+
         channels_data.append({
             'channel_index': idx,
             'rank': rank + 1,
@@ -1432,22 +1522,22 @@ def compute_simulation_gradcam_and_activations(model, img_array, class_idx):
             'alpha_k': float(pooled_grads[idx]),
             'texture_base64': fmap_b64
         })
-        
+
     # Build complete Grad-CAM heatmap
     heatmap = conv_out @ pooled_grads[..., np.newaxis]
     heatmap = np.squeeze(heatmap)
     heatmap = np.maximum(heatmap, 0)
-    
+
     if np.max(heatmap) > 0:
         heatmap = heatmap / np.max(heatmap)
-        
+
     heatmap_resized = cv2.resize(heatmap, (224, 224), interpolation=cv2.INTER_LINEAR)
     heatmap_b64 = heatmap_to_base64(heatmap_resized)
-    
+
     # Create overlay
     overlay = create_overlay(img_array, heatmap_resized)
     overlay_b64 = numpy_to_base64(overlay)
-    
+
     return {
         'channels': channels_data,
         'heatmap_base64': heatmap_b64,
@@ -1461,22 +1551,22 @@ def get_simulation_samples():
         os.path.dirname(os.path.abspath(__file__)),
         '..', 'Dataset'
     ))
-    
+
     classes = ['Healthy', 'Bleached', 'Dead']
     samples = []
-    
+
     for cls in classes:
         cls_dir = os.path.join(dataset_dir, cls)
         if not os.path.exists(cls_dir):
             continue
-            
+
         # Get valid images
         files = sorted([f for f in os.listdir(cls_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
-        
+
         for i, filename in enumerate(files[:2]):
             rel_path = f"Dataset/{cls}/{filename}"
             full_path = os.path.join(cls_dir, filename)
-            
+
             thumb_b64 = None
             try:
                 with Image.open(full_path) as img:
@@ -1486,7 +1576,7 @@ def get_simulation_samples():
                     thumb_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
             except Exception as e:
                 print(f"Error encoding thumbnail for {filename}: {e}")
-                
+
             samples.append({
                 'id': f"{cls.lower()}_sample_{i+1}",
                 'path': rel_path,
@@ -1495,7 +1585,7 @@ def get_simulation_samples():
                 'filename': filename,
                 'thumbnail_b64': thumb_b64
             })
-            
+
     return jsonify({'samples': samples})
 
 @app.route('/api/simulation_inference', methods=['POST'])
@@ -1504,15 +1594,15 @@ def run_simulation_inference():
     import time
     data = request.get_json(silent=True) or {}
     rel_path = data.get('path')
-    
+
     if not rel_path:
         return jsonify({'error': 'No image path provided'}), 400
-        
+
     abs_path = os.path.normpath(os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         '..', rel_path
     ))
-    
+
     # Security/Sanity Check
     base_dataset = os.path.normpath(os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
@@ -1520,45 +1610,45 @@ def run_simulation_inference():
     ))
     if not abs_path.startswith(base_dataset):
         return jsonify({'error': 'Unauthorized path access'}), 403
-        
+
     if not os.path.exists(abs_path):
         return jsonify({'error': f'Sample image not found: {rel_path}'}), 404
-        
+
     try:
         img_bgr = cv2.imread(abs_path, cv2.IMREAD_COLOR)
         if img_bgr is None:
             return jsonify({'error': 'Could not decode sample image'}), 400
-            
+
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
         img_resized = cv2.resize(img_rgb, (IMG_SIZE, IMG_SIZE))
-        
+
         # Select base model
         model = BASE_MODEL
         if model is None and len(MODELS) > 0:
             model = MODELS[0]
-            
+
         if model is None:
             return jsonify({'error': 'Model not loaded on server'}), 500
-            
+
         # Inference speed benchmarking
         start_time = time.time()
         preds = model.predict(np.expand_dims(img_resized.astype('float32'), axis=0), verbose=0)[0]
         inference_time_ms = (time.time() - start_time) * 1000
-        
+
         calibrated_preds = temperature_scale_from_probs(preds, TEMPERATURE)
         pred_idx = int(np.argmax(calibrated_preds))
         confidence = float(calibrated_preds[pred_idx] * 100)
         prediction_label = CLASS_NAMES[pred_idx]
-        
+
         # Extract activations + alpha values
         explanation = compute_simulation_gradcam_and_activations(model, img_resized, pred_idx)
         if explanation is None:
             return jsonify({'error': 'Could not extract activations or Grad-CAM'}), 500
-            
+
         # Original image base64
         _, buffer = cv2.imencode('.png', img_bgr)
         input_image_b64 = base64.b64encode(buffer).decode('utf-8')
-        
+
         result = {
             'path': rel_path,
             'prediction': prediction_label,
@@ -1570,9 +1660,9 @@ def run_simulation_inference():
             'overlay_base64': explanation['overlay_base64'],
             'channels': explanation['channels']
         }
-        
+
         return jsonify(result)
-        
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -1587,4 +1677,7 @@ if __name__ == '__main__':
     print("   Coral Health AI - Web Application Server")
     print("=======================================================")
     print(f"   Server starting at http://localhost:5000")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # debug=False / use_reloader=False: the reloader otherwise spawns a child
+    # process that re-runs load_models(), loading the whole ensemble TWICE at
+    # startup. threaded=True lets the browser fetch assets concurrently.
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)

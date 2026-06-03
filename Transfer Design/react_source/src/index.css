@@ -1,0 +1,695 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&family=Rethink+Sans:ital,wght@0,400..800;1,400..800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* ── Design tokens ── */
+:root {
+  --font-display: 'Rethink Sans', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', 'Rethink Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Typography */
+  --text-hero: clamp(52px, 7vw, 88px);
+  --text-section: clamp(36px, 4.8vw, 60px);
+  --text-subsection: clamp(26px, 3vw, 34px);
+  --text-card-title: 20px;
+  --text-body-lg: 18px;
+  --text-body: 16px;
+  --text-ui: 14px;
+  --text-caption: 12px;
+  --text-micro: 11px;
+  --leading-hero: 1.02;
+  --leading-section: 1.08;
+  --leading-subsection: 1.16;
+  --leading-body: 1.58;
+  --leading-ui: 1.42;
+  --leading-caption: 1.35;
+  --tracking-display: -0.035em;
+  --tracking-section: -0.025em;
+  --tracking-tight: -0.015em;
+  --tracking-label: 0.06em;
+  --measure-hero: 62ch;
+  --measure-prose: 66ch;
+  --measure-card: 46ch;
+  --section-space-lg: 120px;
+  --section-space-md: 96px;
+  --section-space-sm: 72px;
+
+  /* Backgrounds */
+  --bg-page: #f7f5f1;
+  --bg-card: #ffffff;
+  --bg-alt: #f9fafb;
+  --bg-chip: #f3f4f6;
+
+  /* Borders */
+  --border-subtle: #d1d5db;
+  --border-base: #e8e6e2;
+  --border-faint: #f3f4f6;
+
+  /* Text */
+  --text-primary: #1e1c1a;
+  --text-secondary: #5a5650;
+  --text-faint: #827d76;
+  --text-muted: #a8a39c;
+
+  /* Accent tint backgrounds */
+  --tint-blue: #e5eefc;
+  --tint-sky: #f0f9ff;
+  --tint-green: #f0faf3;
+  --tint-orange: #fef3e8;
+  --tint-red: #fdf0f0;
+  --tint-teal: #f0fdfa;
+
+  /* Nav backdrop */
+  --header-bg-rest: rgba(255, 255, 255, 0.05);
+  --header-bg-scrolled: rgba(255, 255, 255, 0.15);
+  --header-border-rest: rgba(255, 255, 255, 0.2);
+  --header-border-scrolled: rgba(255, 255, 255, 0.4);
+  --header-shadow-scrolled: rgba(13, 23, 56, 0.08);
+  --header-text: #0f172a;
+  --header-nav-text: #0f172a;
+  --header-hover: rgba(15, 23, 42, 0.06);
+  --mobile-nav-bg: rgba(255, 255, 255, 0.75);
+  --mobile-nav-border: rgba(255, 255, 255, 0.4);
+
+  /* Coral Health AI brand accents */
+  --brand-primary: #0057e6;
+  --brand-hover: #3379eb;
+  --brand-pressed: #0048bd;
+  --brand-technical: #224eee;
+  --brand-cyan: #38bdf8;
+  --brand-light: rgba(0, 87, 230, 0.08);
+  --brand-glow: rgba(0, 87, 230, 0.28);
+  --navy-deep: #0d1738;
+  --text-brand: var(--brand-primary);
+
+  /* Hero section responsive variables (Codex dark ocean concept) */
+  --hero-bg-base: #04091a;
+  --hero-text-title: #ffffff;
+  --hero-text-copy: rgba(255, 255, 255, 0.78);
+  --hero-stamp-text: #38bdf8;
+  --hero-stamp-border: rgba(56, 189, 248, 0.35);
+  --hero-stamp-bg: rgba(56, 189, 248, 0.08);
+  --hero-vignette: radial-gradient(ellipse 90% 80% at 50% 50%, transparent 20%, rgba(4, 9, 26, 0.65) 100%);
+  --hero-bleed: linear-gradient(to bottom, transparent 0%, rgba(4, 9, 26, 0.88) 70%, #04091a 100%);
+  --hero-top-fade: linear-gradient(to bottom, rgba(4, 9, 26, 0.55) 0%, transparent 100%);
+  --hero-video-opacity: 0.72;
+  --hero-video-blend: normal;
+  --hero-metric-bg: rgba(255, 255, 255, 0.07);
+  --hero-metric-border: rgba(255, 255, 255, 0.12);
+  --hero-metric-label: rgba(255, 255, 255, 0.55);
+  --hero-btn-sec-bg: rgba(255, 255, 255, 0.07);
+  --hero-btn-sec-border: rgba(255, 255, 255, 0.18);
+  --hero-btn-sec-text: rgba(255, 255, 255, 0.88);
+  --hero-btn-sec-hover: rgba(255, 255, 255, 0.13);
+}
+
+/* ── Dark mode overrides ── */
+.dark {
+  --bg-page: #080a0f;
+  --bg-card: #121620;
+  --bg-alt: #0d1017;
+  --bg-chip: #1c212d;
+
+  --border-subtle: #262d3d;
+  --border-base: #1c212d;
+  --border-faint: #121620;
+
+  --text-primary: #e2f1fa;
+  --text-secondary: #8ba3b8;
+  --text-faint: #607386;
+  --text-muted: #8ba3b8;
+
+  --tint-blue: rgba(59, 130, 246, 0.16);
+  --tint-sky: rgba(14, 165, 233, 0.16);
+  --tint-green: rgba(60, 171, 87, 0.2);
+  --tint-orange: rgba(224, 123, 42, 0.2);
+  --tint-red: rgba(184, 65, 65, 0.2);
+  --tint-teal: rgba(45, 212, 191, 0.16);
+
+  /* Brighten brand primary in dark mode to pass contrast checks (e.g. #3b82f6 or #4786ff) */
+  --brand-primary: #3b82f6;
+  --brand-hover: #60a5fa;
+  --brand-pressed: #2563eb;
+  --brand-light: rgba(59, 130, 246, 0.12);
+  --brand-glow: rgba(59, 130, 246, 0.28);
+  --text-brand: var(--brand-cyan);
+
+  --header-bg-rest: rgba(8, 10, 15, 0.15);
+  --header-bg-scrolled: rgba(8, 10, 15, 0.65);
+  --header-border-rest: rgba(255, 255, 255, 0.05);
+  --header-border-scrolled: rgba(255, 255, 255, 0.1);
+  --header-shadow-scrolled: rgba(0, 0, 0, 0.3);
+  --header-text: #ffffff;
+  --header-nav-text: #ffffff;
+  --header-hover: rgba(255, 255, 255, 0.08);
+  --mobile-nav-bg: rgba(8, 10, 15, 0.75);
+  --mobile-nav-border: rgba(255, 255, 255, 0.08);
+
+  /* Hero section responsive variables */
+  --hero-bg-base: #080a0f;
+  --hero-text-title: #ffffff;
+  --hero-text-copy: rgba(255, 255, 255, 0.78);
+  --hero-stamp-text: #38bdf8;
+  --hero-stamp-border: rgba(56, 189, 248, 0.45);
+  --hero-stamp-bg: transparent;
+  --hero-vignette: radial-gradient(ellipse 90% 80% at 50% 50%, transparent 20%, rgba(8,10,15,0.65) 100%);
+  --hero-bleed: linear-gradient(to bottom, transparent 0%, rgba(8,10,15,0.88) 70%, #080a0f 100%);
+  --hero-top-fade: linear-gradient(to bottom, rgba(8,10,15,0.55) 0%, transparent 100%);
+  --hero-video-opacity: 0.72;
+  --hero-video-blend: normal;
+  --hero-metric-bg: rgba(255, 255, 255, 0.07);
+  --hero-metric-border: rgba(255, 255, 255, 0.12);
+  --hero-metric-label: rgba(255, 255, 255, 0.55);
+  --hero-btn-sec-bg: rgba(255, 255, 255, 0.07);
+  --hero-btn-sec-border: rgba(255, 255, 255, 0.18);
+  --hero-btn-sec-text: rgba(255, 255, 255, 0.88);
+  --hero-btn-sec-hover: rgba(255, 255, 255, 0.13);
+}
+
+/* Global reset / base */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: clip;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 250ms ease, color 250ms ease;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Token aliases for Tailwind gray utilities used in dense dashboard sections. */
+.text-gray-900,
+.text-gray-800 {
+  color: var(--text-primary);
+}
+
+.text-gray-700,
+.text-gray-600,
+.text-gray-500 {
+  color: var(--text-secondary);
+}
+
+.text-gray-400 {
+  color: var(--text-faint);
+}
+
+.text-gray-300 {
+  color: var(--text-muted);
+}
+
+.bg-gray-50,
+.bg-gray-100 {
+  background-color: var(--bg-alt);
+}
+
+.bg-gray-200 {
+  background-color: var(--border-base);
+}
+
+.border-gray-50,
+.border-gray-100,
+.border-gray-200,
+.border-gray-100\/50,
+.border-gray-200\/50 {
+  border-color: var(--border-subtle);
+}
+
+.fill-gray-600,
+.fill-gray-500,
+.fill-gray-400 {
+  fill: var(--text-faint);
+}
+
+.type-display {
+  font-family: var(--font-display);
+  font-size: var(--text-hero);
+  font-weight: 720;
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-hero);
+}
+
+.type-section-title {
+  font-family: var(--font-display);
+  font-size: var(--text-section);
+  font-weight: 700;
+  letter-spacing: var(--tracking-section);
+  line-height: var(--leading-section);
+}
+
+.type-body {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.type-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  font-weight: 650;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --text-hero: clamp(40px, 13vw, 56px);
+    --text-section: clamp(32px, 9vw, 42px);
+    --text-subsection: clamp(24px, 7vw, 30px);
+    --section-space-lg: 80px;
+    --section-space-md: 72px;
+    --section-space-sm: 56px;
+  }
+}
+
+/* Screen-reader-only utility (complement to Tailwind sr-only) */
+.sr-only {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Visible on focus */
+.sr-only:focus,
+.focus-within\:not-sr-only:focus-within {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Global focus style — visible ring using ocean-blue token */
+:focus-visible {
+  outline: 2px solid #669af0;
+  outline-offset: 2px;
+}
+
+/* Ping animation for badge dot */
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-ping {
+  animation: ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Scrollytelling layout */
+.scrollytelling-container {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  margin-bottom: 56px;
+}
+
+@media (min-width: 1024px) {
+  .scrollytelling-container {
+    flex-direction: row;
+    gap: 56px;
+    align-items: flex-start;
+  }
+}
+
+/* Left column: scrollable text steps */
+.scrollytelling-steps {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 420px;
+}
+
+/* Each step has generous vertical padding to create scroll distance */
+@media (min-width: 1024px) {
+  .scrollytelling-steps {
+    padding-top: 8px;
+    padding-bottom: 24px; /* Tight padding to minimize the bottom gap */
+  }
+  .scroll-step {
+    display: flex;
+    align-items: stretch;
+  }
+}
+
+/* Step text transitions */
+.scroll-step .step-title {
+  transition: color 300ms ease, opacity 300ms ease;
+  color: var(--text-muted);
+  opacity: 0.72;
+}
+.scroll-step.active .step-title {
+  color: var(--text-primary);
+  opacity: 1;
+}
+
+.scroll-step .step-desc {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 400ms ease, opacity 300ms ease, margin 300ms ease;
+  margin-top: 0;
+}
+.scroll-step.active .step-desc {
+  max-height: 200px;
+  opacity: 1;
+  margin-top: 12px;
+}
+
+/* Step number circle */
+.scroll-step .step-number {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--border-subtle);
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color 300ms ease, background 300ms ease;
+  flex-shrink: 0;
+}
+.scroll-step .step-number span {
+  transition: color 300ms ease;
+}
+.scroll-step.active .step-number {
+  border-color: currentColor;
+  background: currentColor;
+}
+.scroll-step.active .step-number span {
+  color: #ffffff;
+}
+
+/* Vertical connector line between steps */
+.scroll-step .step-connector {
+  width: 2px;
+  flex-grow: 1;
+  background: var(--border-faint);
+  transition: background 300ms ease;
+}
+.scroll-step.active .step-connector {
+  background: currentColor;
+}
+
+/* Right column: sticky SVG */
+.scrollytelling-visual {
+  display: none;  /* Hidden on mobile */
+}
+
+@media (min-width: 1024px) {
+  .scrollytelling-visual {
+    display: flex;
+    flex-direction: column;
+    flex: 1.3;
+    position: sticky;
+    top: 96px; /* Positioned neatly under the sticky header with premium snug alignment */
+    height: auto;
+    align-self: flex-start;
+    padding-top: 8px; /* Perfectly aligns with first step "01 Input Image" */
+  }
+}
+
+/* CNN Pipeline dark banner */
+.pipeline-dark-banner {
+  background: #0d1738;
+  border-radius: 20px;
+  border: 1px solid #1e3054;
+  padding: 32px 24px 24px;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.pipeline-dark-banner::before {
+  /* subtle radial glow behind the SVG */
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60%;
+  height: 80%;
+  background: radial-gradient(ellipse, rgba(14, 165, 233, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.pipeline-svg-wrapper {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 280px;
+}
+
+.pipeline-dark-banner .pipeline-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #475569;
+  margin-bottom: 16px;
+}
+
+/* Resting states for pipeline SVG elements to prevent GSAP revert flashing (FOUC) */
+.card-glow {
+  opacity: 0;
+}
+.icon-highlight {
+  opacity: 0.2;
+  transform: translateY(15px);
+}
+.arrow {
+  opacity: 0.2;
+  transform: translateX(-8px);
+}
+
+/* ── Tactile Scientific Editorial Styles ── */
+.paper-grain {
+  position: relative;
+}
+.paper-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.038;
+  pointer-events: none;
+  z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+.editorial-divider {
+  border: none;
+  border-top: 1.5px solid var(--border-base);
+  height: 4px;
+  border-bottom: 0.5px solid var(--border-base);
+  margin: 1.5rem 0;
+  opacity: 0.6;
+}
+
+.research-stamp {
+  border-top: 1px solid var(--hero-stamp-border);
+  border-bottom: 1px solid var(--hero-stamp-border);
+  padding: 4px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hero-stamp-text);
+  background: var(--hero-stamp-bg);
+  border-radius: 6px;
+  transition: all 250ms ease;
+}
+
+/* ── Ambient Oceanic Mesh Gradient (Codex color concept with Coral brand blues) ── */
+@keyframes oceanFluidMesh {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.ambient-oceanic-mesh {
+  background-color: var(--hero-bg-base);
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(13, 23, 56, 0.85) 0%, transparent 60%), /* Dark base glow */
+    radial-gradient(circle at 88% 22%, rgba(60, 79, 224, 0.22) 0%, transparent 50%), /* Glowing Codex Blue */
+    radial-gradient(circle at 80% 88%, rgba(14, 165, 233, 0.15) 0%, transparent 45%), /* Glowing Marine Cyan */
+    radial-gradient(circle at 10% 82%, rgba(60, 79, 224, 0.18) 0%, transparent 55%), /* Glowing Codex Blue Accent */
+    radial-gradient(circle at 50% 50%, rgba(4, 9, 26, 0.96) 0%, transparent 80%);
+  background-size: 200% 200%;
+  animation: oceanFluidMesh 20s infinite ease-in-out;
+  transition: background-color 250ms ease, background-image 250ms ease;
+}
+
+.dark .ambient-oceanic-mesh {
+  background-color: var(--hero-bg-base);
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(13, 23, 56, 0.85) 0%, transparent 60%), /* Dark base glow */
+    radial-gradient(circle at 88% 22%, rgba(60, 79, 224, 0.28) 0%, transparent 50%), /* Glowing Codex Blue (vivid in dark mode) */
+    radial-gradient(circle at 80% 88%, rgba(14, 165, 233, 0.20) 0%, transparent 45%), /* Glowing Marine Cyan */
+    radial-gradient(circle at 10% 82%, rgba(60, 79, 224, 0.22) 0%, transparent 55%), /* Glowing Codex Blue Accent */
+    radial-gradient(circle at 50% 50%, rgba(4, 9, 26, 0.96) 0%, transparent 80%);
+}
+
+/* Infinite Scrolling Marquee */
+.marquee-container {
+  display: flex;
+  overflow: hidden;
+  user-select: none;
+  gap: 6rem;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 15%,
+    black 85%,
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 15%,
+    black 85%,
+    transparent
+  );
+}
+
+.marquee-container:hover .marquee-content {
+  animation-play-state: paused;
+}
+
+.marquee-content {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  min-width: 100%;
+  gap: 6rem;
+  animation: marquee 35s linear infinite;
+  will-change: transform;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% - 6rem));
+  }
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Dark-mode skin for the dense Validation dashboard. */
+.dark #performance {
+  --validation-panel: #121620;
+  --validation-panel-soft: #0d1017;
+  --validation-line: #1c212d;
+  --validation-muted-line: rgba(28, 33, 45, 0.58);
+}
+
+
+
+.dark #performance .text-gray-900,
+.dark #performance .text-gray-800 {
+  color: var(--text-primary) !important;
+}
+
+.dark #performance .text-gray-600,
+.dark #performance .text-gray-500 {
+  color: var(--text-secondary) !important;
+}
+
+.dark #performance .text-gray-400,
+.dark #performance .text-gray-300 {
+  color: var(--text-faint) !important;
+}
+
+.dark #performance .stroke-gray-100,
+.dark #performance .stroke-gray-200 {
+  stroke: var(--validation-line) !important;
+}
+
+.dark #performance .fill-gray-400,
+.dark #performance .fill-gray-500,
+.dark #performance .fill-gray-600 {
+  fill: var(--text-faint) !important;
+}
+
+.dark #performance svg rect[fill="white"] {
+  fill: var(--validation-panel-soft) !important;
+}
+
+.dark #performance svg rect[stroke="#e2e8f0"],
+.dark #performance svg line[stroke="#e2e8f0"] {
+  stroke: var(--validation-line) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   Reduced-motion: stop always-running, compositing-heavy animations for
+   users who prefer reduced motion. Disables the logo marquee, the ambient
+   ocean mesh gradient, infinite spinners/pings, and collapses long
+   transitions so the page settles immediately. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .marquee-content {
+    animation: none !important;
+    will-change: auto !important;
+  }
+
+  .ambient-oceanic-mesh {
+    animation: none !important;
+    background-position: 0% 50% !important;
+  }
+}

@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coral Health AI | Real-Time Reef Assessment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --slate-950: #020617;
+            --slate-900: #0f172a;
+            --slate-800: #1e293b;
+            --cyan-400: #22d3ee;
+            --cyan-500: #06b6d4;
+            --teal-400: #2dd4bf;
+            --teal-500: #14b8a6;
+            --indigo-400: #818cf8;
+            --indigo-500: #6366f1;
+            --amber-500: #f59e0b;
+            --rose-500: #f43f5e;
+            --grid-color: rgba(6, 182, 212, 0.03);
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--slate-950);
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px), 
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 50px 50px;
+            color: #fff;
+            -webkit-font-smoothing: antialiased;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* --- NOISE TEXTURE --- */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        h1, h2, h3, .font-heading {
+            font-family: 'Space Grotesk', sans-serif;
+            letter-spacing: -0.04em;
+            line-height: 0.95;
+        }
+
+        .uppercase-label {
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            font-weight: 800;
+            font-size: 10px;
+        }
+
+        .glass-card {
+            background: rgba(15, 23, 42, 0.3);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-card::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.05),
+                transparent
+            );
+            transform: skewX(-20deg);
+            transition: 0.75s;
+        }
+
+        .glass-card:hover::after {
+            left: 150%;
+        }
+
+        .glass-card:hover {
+            background: rgba(15, 23, 42, 0.4);
+            border-color: rgba(6, 182, 212, 0.3);
+            transform: translateY(-8px) scale(1.01);
+            box-shadow: 0 30px 60px -12px rgba(6, 182, 212, 0.1);
+        }
+
+        .text-gradient {
+            background: linear-gradient(135deg, var(--cyan-400) 0%, #818cf8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-glow {
+            filter: blur(140px);
+            opacity: 0.15;
+            pointer-events: none;
+            animation: drift 20s infinite alternate ease-in-out;
+        }
+
+        @keyframes drift {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(5%, 5%) scale(1.1); }
+        }
+
+        /* --- ANIMATIONS --- */
+        .animate-reveal {
+            opacity: 0;
+            transform: translateY(30px) scale(0.98);
+            filter: blur(10px);
+            transition: 
+                opacity 1s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 1s cubic-bezier(0.16, 1, 0.3, 1),
+                filter 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .animate-reveal.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+        }
+
+        /* Granular Delays for Staggering */
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+        .reveal-delay-4 { transition-delay: 0.4s; }
+        .reveal-delay-5 { transition-delay: 0.5s; }
+
+        .float-anim {
+            animation: float 6s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: var(--slate-950); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.2); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(6, 182, 212, 0.4); }
+
+        .image-overlay-glow {
+            background: radial-gradient(circle at center, transparent 20%, var(--slate-950) 90%);
+        }
+
+        /* Spring interaction for buttons */
+        .spring-hover:hover {
+            transform: scale(1.05);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* --- PROGRESS BAR SHIMMER --- */
+        @keyframes progress-shimmer {
+            0%   { background-position: 200% center; }
+            100% { background-position: -200% center; }
+        }
+        .bar-cyan-shimmer {
+            background: linear-gradient(90deg, #06b6d4 0%, #22d3ee 35%, #a5f3fc 50%, #22d3ee 65%, #06b6d4 100%);
+            background-size: 200% 100%;
+            animation: progress-shimmer 2.5s infinite linear;
+            box-shadow: 0 0 8px rgba(6,182,212,0.6);
+        }
+        .bar-indigo-shimmer {
+            background: linear-gradient(90deg, #6366f1 0%, #818cf8 35%, #c7d2fe 50%, #818cf8 65%, #6366f1 100%);
+            background-size: 200% 100%;
+            animation: progress-shimmer 2.5s infinite linear;
+            box-shadow: 0 0 8px rgba(99,102,241,0.6);
+        }
+        .bar-teal-shimmer {
+            background: linear-gradient(90deg, #14b8a6 0%, #2dd4bf 35%, #99f6e4 50%, #2dd4bf 65%, #14b8a6 100%);
+            background-size: 200% 100%;
+            animation: progress-shimmer 2.5s infinite linear;
+            box-shadow: 0 0 8px rgba(20,184,166,0.6);
+        }
+    </style>
+</head>
+<body class="selection:bg-cyan-500/30">
+
+    <!-- Header -->
+    <header id="site-header" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <!-- Logo -->
+            <a href="#" class="flex items-center gap-2.5 group">
+                <div class="relative">
+                    <i data-lucide="waves" class="w-7 h-7 text-cyan-400 group-hover:text-cyan-300 transition-colors"></i>
+                    <div class="absolute inset-0 bg-cyan-400/30 blur-md rounded-full group-hover:bg-cyan-400/50 transition-all"></div>
+                </div>
+                <span class="text-lg font-bold tracking-tight text-white">Coral Health <span class="text-cyan-400">AI</span></span>
+            </a>
+
+            <!-- Desktop Nav -->
+            <nav class="hidden md:flex items-center gap-1">
+                <a href="#about" class="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-all">About</a>
+                <a href="#technology" class="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-all">Technology</a>
+                <a href="#performance" class="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-all">Performance</a>
+                <a href="#try-model" class="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-all">Try Model</a>
+            </nav>
+
+            <!-- CTA -->
+            <div class="hidden md:flex items-center gap-3">
+                <a href="#try-model" class="px-5 py-2.5 text-sm font-semibold rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-all shadow-lg shadow-cyan-500/25 hover:shadow-cyan-400/40">Try the Model</a>
+            </div>
+
+            <!-- Mobile Toggle -->
+            <button id="mobile-toggle" class="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all">
+                <i data-lucide="menu" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Mobile Nav -->
+        <div id="mobile-nav" class="md:hidden hidden bg-slate-950/95 backdrop-blur-xl border-b border-white/5 px-6 pb-6">
+            <div class="flex flex-col gap-1 pt-2">
+                <a href="#about" onclick="closeMobileNav()" class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-all">About</a>
+                <a href="#technology" onclick="closeMobileNav()" class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-all">Technology</a>
+                <a href="#performance" onclick="closeMobileNav()" class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-all">Performance</a>
+                <a href="#try-model" onclick="closeMobileNav()" class="px-4 py-3 text-sm font-medium text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-all">Try Model</a>
+                <a href="#try-model" onclick="closeMobileNav()" class="mt-2 px-5 py-3 text-sm font-semibold rounded-full bg-cyan-500 text-center text-slate-950 transition-all">Try the Model</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="relative w-full min-h-screen flex items-center justify-center pt-20 overflow-hidden bg-slate-950">
+            <!-- Ambient background glows -->
+            <div class="absolute top-0 left-1/4 w-[600px] h-[600px] bg-cyan-500/8 blur-[140px] rounded-full pointer-events-none"></div>
+            <div class="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-indigo-600/8 blur-[140px] rounded-full pointer-events-none"></div>
+            <div class="absolute top-1/3 right-0 w-[300px] h-[300px] bg-teal-500/5 blur-[100px] rounded-full pointer-events-none"></div>
+
+            <!-- Subtle grid overlay -->
+            <div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: linear-gradient(rgba(6,182,212,1) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,1) 1px, transparent 1px); background-size: 60px 60px;"></div>
+            
+            <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center z-10 w-full">
+                <!-- Left Content -->
+                <div class="animate-reveal py-10">
+                    <!-- Status Badge -->
+                    <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-xs font-semibold text-cyan-400 mb-8">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                        </span>
+                        EfficientNet-V4 Robust · Active
+                    </div>
+
+                    <h1 class="text-6xl md:text-7xl lg:text-8xl font-bold mb-6 leading-[1.05] tracking-tight">
+                        Coral Health <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-400">AI</span>
+                    </h1>
+                    <p class="text-xl md:text-2xl text-slate-300 mb-4 font-medium tracking-tight">
+                        <span class="text-cyan-400 font-bold">98.11% Accuracy</span> in Real-Time Reef Assessment
+                    </p>
+                    <p class="text-base text-slate-500 mb-10 max-w-md leading-relaxed">
+                        Harnessing EfficientNet-V4 Robust deep learning to give marine biologists instant, explainable coral health classifications — protecting reefs at scale.
+                    </p>
+                    <div class="flex flex-wrap items-center gap-4 mb-14">
+                        <a href="#try-model" class="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-lg shadow-[0_0_50px_rgba(6,182,212,0.35)] hover:shadow-[0_0_70px_rgba(6,182,212,0.5)] transition-all">
+                            Try the Model <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                        </a>
+                        <a href="#about" class="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-white/5 hover:bg-white/10 text-white font-semibold text-lg border border-white/10 hover:border-white/20 transition-all">
+                            Learn More
+                        </a>
+                    </div>
+
+                    <!-- Hero Stats -->
+                    <div class="flex flex-wrap items-center gap-0 border-t border-white/5 pt-8">
+                        <div class="pr-8">
+                            <div class="text-2xl font-bold text-white tracking-tight">98.11%</div>
+                            <div class="text-sm text-slate-500 font-medium mt-0.5">Model Accuracy</div>
+                        </div>
+                        <div class="w-px h-10 bg-white/8 mr-8"></div>
+                        <div class="pr-8">
+                            <div class="text-2xl font-bold text-white tracking-tight">42ms</div>
+                            <div class="text-sm text-slate-500 font-medium mt-0.5">Inference Latency</div>
+                        </div>
+                        <div class="w-px h-10 bg-white/8 mr-8"></div>
+                        <div class="pr-8">
+                            <div class="text-2xl font-bold text-white tracking-tight">2.4M</div>
+                            <div class="text-sm text-slate-500 font-medium mt-0.5">Coral Points Mapped</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Visual -->
+                <div class="animate-reveal reveal-delay-2 relative">
+                    <!-- Glow rings behind card -->
+                    <div class="absolute -inset-8 bg-gradient-to-r from-cyan-500/15 via-teal-500/10 to-indigo-500/15 blur-3xl rounded-full"></div>
+
+                    <!-- Main Card -->
+                    <div class="relative aspect-square w-full rounded-3xl overflow-hidden border border-white/10 bg-slate-900/50 shadow-[0_0_100px_rgba(6,182,212,0.1)]">
+                        <img src="https://images.unsplash.com/photo-1728810748131-12f9839323a7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb3JhbCUyMHJlZWYlMjB1bmRlcndhdGVyJTIwYmlvbHVtaW5lc2NlbnQlMjBibHVlfGVufDF8fHx8MTc3MjU0Mzc0OHww&ixlib=rb-4.1.0&q=80&w=1080" alt="Coral Reef AI Analysis" class="w-full h-full object-cover opacity-70">
+                        <!-- Color tint overlay -->
+                        <div class="absolute inset-0 bg-gradient-to-br from-cyan-900/40 via-transparent to-indigo-900/40"></div>
+
+                        <!-- HUD Overlay — bottom -->
+                        <div class="absolute bottom-5 left-5 right-5 p-5 rounded-2xl bg-slate-950/70 backdrop-blur-xl border border-white/10">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="relative flex h-1.5 w-1.5">
+                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-teal-500"></span>
+                                    </span>
+                                    <span class="text-[10px] font-bold text-cyan-400 tracking-widest uppercase">Prediction Engine · Active</span>
+                                </div>
+                                <span class="text-[10px] text-slate-500 font-medium">Session XR-921</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="p-3 rounded-xl bg-white/5 border border-white/5">
+                                    <div class="text-[9px] font-medium text-slate-500 uppercase tracking-wider mb-1.5">Healthy</div>
+                                    <div class="text-sm font-bold text-white mb-1.5">82.4%</div>
+                                    <div class="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                                        <div class="h-full bg-teal-500 rounded-full" style="width: 82.4%"></div>
+                                    </div>
+                                </div>
+                                <div class="p-3 rounded-xl bg-white/5 border border-white/5">
+                                    <div class="text-[9px] font-medium text-slate-500 uppercase tracking-wider mb-1.5">Bleached</div>
+                                    <div class="text-sm font-bold text-white mb-1.5">12.1%</div>
+                                    <div class="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                                        <div class="h-full bg-amber-500 rounded-full" style="width: 12.1%"></div>
+                                    </div>
+                                </div>
+                                <div class="p-3 rounded-xl bg-white/5 border border-white/5">
+                                    <div class="text-[9px] font-medium text-slate-500 uppercase tracking-wider mb-1.5">Dead</div>
+                                    <div class="text-sm font-bold text-white mb-1.5">5.5%</div>
+                                    <div class="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                                        <div class="h-full bg-rose-500 rounded-full" style="width: 5.5%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Top-left confidence badge -->
+                        <div class="absolute top-5 left-5 flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-950/70 backdrop-blur-xl border border-cyan-500/20">
+                            <div class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+                            <span class="text-xs font-bold text-cyan-400">98.11% Benchmark</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scroll cue -->
+            <div class="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-slate-600">
+                <span class="text-[10px] font-medium uppercase tracking-widest">Scroll</span>
+                <i data-lucide="chevron-down" class="w-5 h-5 animate-bounce"></i>
+            </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about" class="py-32 bg-slate-950 relative overflow-hidden">
+            <div class="max-w-7xl mx-auto px-6 relative z-10">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+                    <!-- Image Side -->
+                    <div class="relative animate-reveal">
+                        <!-- Primary image -->
+                        <div class="relative rounded-3xl overflow-hidden border border-white/10 shadow-[0_0_60px_rgba(6,182,212,0.08)] aspect-[4/3]">
+                            <img src="https://images.unsplash.com/photo-1758968592659-11880869f06d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYXJpbmUlMjBiaW9sb2dpc3QlMjBzY3ViYSUyMGRpdmluZyUyMHJlZWYlMjByZXNlYXJjaHxlbnwxfHx8fDE3NzI1NDM3NTB8MA&ixlib=rb-4.1.0&q=80&w=1080" class="w-full h-full object-cover" alt="Marine biologist researching coral reef">
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent"></div>
+                            <div class="absolute bottom-5 left-5 px-3 py-1.5 rounded-full bg-slate-950/70 backdrop-blur-md border border-white/10 text-[10px] font-bold text-cyan-400 uppercase tracking-widest">
+                                BHD Coral Dataset · Kaggle
+                            </div>
+                        </div>
+
+                        <!-- Secondary image — floating card -->
+                        <div class="absolute -bottom-8 -right-8 w-44 h-44 rounded-2xl overflow-hidden border border-white/15 shadow-2xl">
+                            <img src="https://images.unsplash.com/photo-1769133267968-c37ec70a212b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxibGVhY2hlZCUyMGNvcmFsJTIwcmVlZiUyMG9jZWFuJTIwY2xpbWF0ZXxlbnwxfHx8fDE3NzI1NDM3NTF8MA&ixlib=rb-4.1.0&q=80&w=400" class="w-full h-full object-cover" alt="Bleached coral reef">
+                            <div class="absolute inset-0 bg-gradient-to-br from-amber-900/40 to-transparent"></div>
+                            <div class="absolute bottom-2 left-2 text-[8px] font-bold text-amber-400 uppercase tracking-wider">Bleached Specimen</div>
+                        </div>
+
+                        <!-- Stat pill -->
+                        <div class="absolute -top-4 -left-4 flex items-center gap-3 px-5 py-3 rounded-2xl bg-slate-900 border border-white/10 shadow-2xl backdrop-blur-xl">
+                            <div class="w-10 h-10 rounded-xl bg-teal-500/15 flex items-center justify-center">
+                                <span class="text-lg">🪸</span>
+                            </div>
+                            <div>
+                                <div class="text-base font-bold text-white">1,582</div>
+                                <div class="text-[10px] text-slate-500 font-medium">Total Images</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Text Side -->
+                    <div class="animate-reveal reveal-delay-2">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-xs font-semibold text-teal-400 mb-6">
+                            About the Project
+                        </div>
+                        <h2 class="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight tracking-tight">
+                            Automating Global <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-400">Reef Monitoring</span>
+                        </h2>
+                        <div class="space-y-5 mb-10">
+                            <p class="text-base text-slate-400 leading-relaxed">
+                                Coral Health AI is trained on the <span class="text-cyan-400 font-semibold">BHD Coral Dataset</span> from Kaggle — a curated collection of 1,582 underwater coral images classified into three health states: Healthy, Bleached, and Dead. Using EfficientNetB0 as the backbone with a 5-seed SWA ensemble approach, the project reports a canonical 98.11% held-out test accuracy under the documented 224x224 benchmark protocol.
+                            </p>
+                            <p class="text-base text-slate-400 leading-relaxed">
+                                The training pipeline employs Stochastic Weight Averaging (SWA), cosine decay learning rate scheduling, label smoothing, Mixup augmentation, and deployment-side calibration support — delivering robust, explainable coral health classifications with Grad-CAM visual explanations.
+                            </p>
+                        </div>
+                        
+                        <ul class="space-y-3 mb-12">
+                            <li class="flex items-start gap-3">
+                                <i data-lucide="check-circle-2" class="w-4 h-4 text-cyan-400 mt-0.5 shrink-0"></i>
+                                <span class="text-sm text-slate-400">Trained on BHD Coral Dataset (1,582 images, 3 classes)</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <i data-lucide="check-circle-2" class="w-4 h-4 text-cyan-400 mt-0.5 shrink-0"></i>
+                                <span class="text-sm text-slate-400">5-seed ensemble with SWA for robust predictions</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <i data-lucide="check-circle-2" class="w-4 h-4 text-cyan-400 mt-0.5 shrink-0"></i>
+                                <span class="text-sm text-slate-400">Canonical 224x224 ensemble benchmark with separate protocol analysis</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <i data-lucide="check-circle-2" class="w-4 h-4 text-cyan-400 mt-0.5 shrink-0"></i>
+                                <span class="text-sm text-slate-400">Grad-CAM explainability for every prediction</span>
+                            </li>
+                        </ul>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-5 rounded-2xl bg-white/4 border border-white/8 hover:border-cyan-500/20 hover:bg-white/6 transition-all group">
+                                <div class="text-2xl font-bold text-white mb-1 group-hover:text-cyan-400 transition-colors tracking-tight">3</div>
+                                <div class="text-xs text-slate-500 font-medium">Health Classes</div>
+                            </div>
+                            <div class="p-5 rounded-2xl bg-white/4 border border-white/8 hover:border-cyan-500/20 hover:bg-white/6 transition-all group">
+                                <div class="text-2xl font-bold text-white mb-1 group-hover:text-cyan-400 transition-colors tracking-tight">5</div>
+                                <div class="text-xs text-slate-500 font-medium">Ensemble Seeds</div>
+                            </div>
+                            <div class="p-5 rounded-2xl bg-white/4 border border-white/8 hover:border-cyan-500/20 hover:bg-white/6 transition-all group">
+                                <div class="text-2xl font-bold text-white mb-1 group-hover:text-cyan-400 transition-colors tracking-tight">159</div>
+                                <div class="text-xs text-slate-500 font-medium">Test Samples</div>
+                            </div>
+                            <div class="p-5 rounded-2xl bg-white/4 border border-white/8 hover:border-cyan-500/20 hover:bg-white/6 transition-all group">
+                                <div class="text-2xl font-bold text-white mb-1 group-hover:text-cyan-400 transition-colors tracking-tight">30</div>
+                                <div class="text-xs text-slate-500 font-medium">Training Epochs</div>
+                            </div>
+                        </div>
+                            </div>
+                                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Architecture Section -->
+        <section id="technology" class="py-32 bg-slate-950 relative overflow-hidden">
+            <!-- Background glow -->
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-indigo-500/4 blur-[140px] rounded-full pointer-events-none"></div>
+
+            <div class="max-w-7xl mx-auto px-6">
+                <!-- Header -->
+                <div class="text-center mb-20 max-w-2xl mx-auto">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-semibold text-indigo-400 mb-6 mx-auto">
+                        Technology Stack
+                    </div>
+                    <h2 class="text-4xl md:text-5xl font-bold text-white mb-5 tracking-tight">
+                        Built on <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">Advanced</span> Architecture
+                    </h2>
+                    <p class="text-base text-slate-500 leading-relaxed">
+                        Three pillars of intelligent reef monitoring — accuracy, speed, and transparency — working in concert to protect our most critical marine ecosystems.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Pillar 1 -->
+                    <div class="relative p-8 rounded-3xl bg-white/4 backdrop-blur-xl border border-white/8 hover:border-cyan-500/30 transition-all duration-300 group overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <div class="relative z-10">
+                            <div class="mb-6 w-14 h-14 rounded-2xl bg-cyan-500/10 border border-white/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                                <i data-lucide="cpu" class="w-7 h-7 text-cyan-400"></i>
+                            </div>
+                            <div class="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-2">Deep Neural Architecture</div>
+                            <h3 class="text-xl font-bold text-white mb-4 tracking-tight">EfficientNet-V4 Robust</h3>
+                            <p class="text-sm text-slate-400 leading-relaxed mb-8">A state-of-the-art convolutional neural network ensemble compound-scaled for optimal accuracy-to-efficiency ratio. Lightweight enough for edge deployments, powerful enough for research-grade precision.</p>
+                            <div class="flex flex-wrap gap-2 pt-6 border-t border-white/5">
+                                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/4 border border-white/8 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    <i data-lucide="check-circle-2" class="w-3 h-3 text-cyan-400"></i> 4M Parameters
+                                </div>
+                                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/4 border border-white/8 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    <i data-lucide="check-circle-2" class="w-3 h-3 text-cyan-400"></i> Mobile-Ready
+                                </div>
+                                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/4 border border-white/8 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    <i data-lucide="check-circle-2" class="w-3 h-3 text-cyan-400"></i> TensorFlow/Keras
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pillar 2 -->
+                    <div class="relative p-8 rounded-3xl bg-white/4 backdrop-blur-xl border border-white/8 hover:border-indigo-500/30 transition-all duration-300 group overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <div class="relative z-10">
+                            <div class="mb-6 w-14 h-14 rounded-2xl bg-indigo-500/10 border border-white/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                                <i data-lucide="layers" class="w-7 h-7 text-indigo-400"></i>
+                            </div>
+                            <div class="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-2">Ensemble Learning</div>
+                            <h3 class="text-xl font-bold text-white mb-4 tracking-tight">Robust Ensemble Pipeline</h3>
+                            <p class="text-sm text-slate-400 leading-relaxed mb-8">Five independently trained EfficientNetB0 models combined via Stochastic Weight Averaging (SWA), with a canonical 224x224 ensemble benchmark and separate protocol analysis for flip-only and multi-scale inference.</p>
+                            <div class="flex flex-wrap gap-2 pt-6 border-t border-white/5">
+                                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/4 border border-white/8 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    <i data-lucide="check-circle-2" class="w-3 h-3 text-indigo-400"></i> 5-Seed SWA
+                                </div>
+                                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/4 border border-white/8 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    <i data-lucide="check-circle-2" class="w-3 h-3 text-indigo-400"></i> Canonical 224px Benchmark
+                                </div>
+                                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/4 border border-white/8 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    <i data-lucide="check-circle-2" class="w-3 h-3 text-indigo-400"></i> Cosine Decay LR
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pillar 3 -->
+                    <div class="relative p-8 rounded-3xl bg-white/4 backdrop-blur-xl border border-white/8 hover:border-teal-500/30 transition-all duration-300 group overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <div class="relative z-10">
+                            <div class="mb-6 w-14 h-14 rounded-2xl bg-teal-500/10 border border-white/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                                <i data-lucide="eye" class="w-7 h-7 text-teal-400"></i>
+                            </div>
+                            <div class="text-xs font-bold text-teal-400 uppercase tracking-widest mb-2">Grad-CAM Visualization</div>
+                            <h3 class="text-xl font-bold text-white mb-4 tracking-tight">Explainable AI</h3>
+                            <p class="text-sm text-slate-400 leading-relaxed mb-8">Transparency-first design. Using Grad-CAM heatmaps, the model highlights precise coral regions driving each classification — ensuring biologists can verify and trust every prediction.</p>
+                            <div class="flex flex-wrap gap-2 pt-6 border-t border-white/5">
+                                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/4 border border-white/8 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    <i data-lucide="check-circle-2" class="w-3 h-3 text-teal-400"></i> Grad-CAM Powered
+                                </div>
+                                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/4 border border-white/8 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    <i data-lucide="check-circle-2" class="w-3 h-3 text-teal-400"></i> Biologist-Verified
+                                </div>
+                                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/4 border border-white/8 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    <i data-lucide="check-circle-2" class="w-3 h-3 text-teal-400"></i> Audit Trail
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+        </section>
+
+        <!-- Performance Dashboard -->
+        <section id="performance" class="py-32 bg-slate-950 relative overflow-hidden">
+            <!-- Section divider -->
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent"></div>
+            <div class="absolute right-0 top-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/4 blur-[120px] rounded-full pointer-events-none"></div>
+
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="mb-16">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-xs font-semibold text-cyan-400 mb-5">
+                        Performance Evaluation
+                    </div>
+                    <h2 class="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+                        Model <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-400">Performance</span> Dashboard
+                    </h2>
+                    <p class="text-base text-slate-500 max-w-lg">
+                        Validated across 159 samples from three biogeographical regions. All metrics computed on held-out test data.
+                    </p>
+                </div>
+
+                <!-- Main Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10 animate-reveal">
+                    <div class="relative p-4 rounded-2xl bg-white/4 border border-white/8 hover:border-white/14 transition-all overflow-hidden group">
+                        <div class="absolute top-3 right-3 w-8 h-8 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center">
+                            <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
+                        </div>
+                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Model Accuracy</div>
+                        <div class="text-3xl font-bold text-white tracking-tight mb-3">98.11%</div>
+                        <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                            <div class="bar-cyan-shimmer rounded-full progress-bar h-full transition-all duration-[1500ms] ease-out" style="width: 0%" data-width="98.11"></div>
+                        </div>
+                    </div>
+
+                    <div class="relative p-4 rounded-2xl bg-white/4 border border-white/8 hover:border-white/14 transition-all overflow-hidden group">
+                        <div class="absolute top-3 right-3 w-8 h-8 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center">
+                            <i data-lucide="bar-chart-3" class="w-4 h-4 text-indigo-400"></i>
+                        </div>
+                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Precision Score</div>
+                        <div class="text-3xl font-bold text-white tracking-tight mb-3">98.14%</div>
+                        <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                            <div class="bar-indigo-shimmer rounded-full progress-bar h-full transition-all duration-[1500ms] ease-out" style="width: 0%" data-width="98.14"></div>
+                        </div>
+                    </div>
+
+                    <div class="relative p-4 rounded-2xl bg-white/4 border border-white/8 hover:border-white/14 transition-all overflow-hidden group">
+                        <div class="absolute top-3 right-3 w-8 h-8 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center">
+                            <i data-lucide="trending-up" class="w-4 h-4 text-teal-400"></i>
+                        </div>
+                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Recall Rate</div>
+                        <div class="text-3xl font-bold text-white tracking-tight mb-3">98.11%</div>
+                        <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                            <div class="bar-teal-shimmer rounded-full progress-bar h-full transition-all duration-[1500ms] ease-out" style="width: 0%" data-width="98.11"></div>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Training Convergence -->
+                    <div class="glass-card p-6 rounded-3xl border-white/5 animate-reveal reveal-delay-4">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(34,211,238,0.4)]"></div>
+                            <h3 class="text-lg font-bold">Training Convergence</h3>
+                        </div>
+                        <div class="uppercase-label mb-6">Deployment Phase (Fine-tuning) Over 30 Epochs</div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Accuracy Chart -->
+                            <div class="p-4 rounded-2xl bg-white/3 border border-white/5 min-w-0">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 text-center">Accuracy</div>
+                                <div class="h-[220px] w-full relative">
+                                    <canvas id="accuracyChart"></canvas>
+                                </div>
+                            </div>
+                            <!-- Loss Chart -->
+                            <div class="p-4 rounded-2xl bg-white/3 border border-white/5 min-w-0">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 text-center">Loss</div>
+                                <div class="h-[220px] w-full relative">
+                                    <canvas id="lossChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+
+                    <!-- Confusion Matrix -->
+                    <div class="glass-card p-6 rounded-3xl border-white/5 animate-reveal reveal-delay-5">
+                        <div class="flex items-center gap-3 mb-8">
+                            <div class="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(129,140,248,0.4)]"></div>
+                            <h3 class="text-lg font-bold">Confusion Matrix</h3>
+                        </div>
+                        <div class="uppercase-label mb-8">Validation Set · 159 Samples</div>
+                        
+                        <div class="grid grid-cols-4 gap-2">
+                            <!-- Header -->
+                            <div class="col-span-1"></div>
+                            <div class="text-[9px] font-bold text-slate-500 uppercase text-center">Pred: Healthy</div>
+                            <div class="text-[9px] font-bold text-slate-500 uppercase text-center">Pred: Bleached</div>
+                            <div class="text-[9px] font-bold text-slate-500 uppercase text-center">Pred: Dead</div>
+
+                            <!-- Row 1 -->
+                            <div class="text-[9px] font-bold text-slate-500 uppercase flex items-center">Healthy</div>
+                            <div class="glass-card bg-cyan-500/10 border-cyan-500/20 py-2 rounded-2xl flex items-center justify-center font-bold text-white text-sm shadow-[inset_0_0_20px_rgba(6,182,212,0.1)]">72</div>
+                            <div class="glass-card bg-white/5 py-2 rounded-2xl flex items-center justify-center font-bold text-white text-sm">0</div>
+                            <div class="glass-card bg-white/5 py-2 rounded-2xl flex items-center justify-center font-bold text-white text-sm">0</div>
+
+                            <!-- Row 2 -->
+                            <div class="text-[9px] font-bold text-slate-500 uppercase flex items-center">Bleached</div>
+                            <div class="glass-card bg-white/5 py-2 rounded-2xl flex items-center justify-center font-bold text-white text-sm">2</div>
+                            <div class="glass-card bg-amber-500/10 border-amber-500/20 py-2 rounded-2xl flex items-center justify-center font-bold text-white text-sm shadow-[inset_0_0_20px_rgba(245,158,11,0.1)]">69</div>
+                            <div class="glass-card bg-white/5 py-2 rounded-2xl flex items-center justify-center font-bold text-white text-sm">1</div>
+
+                            <!-- Row 3 -->
+                            <div class="text-[9px] font-bold text-slate-500 uppercase flex items-center">Dead</div>
+                            <div class="glass-card bg-white/5 py-2 rounded-2xl flex items-center justify-center font-bold text-white text-sm">0</div>
+                            <div class="glass-card bg-white/5 py-2 rounded-2xl flex items-center justify-center font-bold text-white text-sm">1</div>
+                            <div class="glass-card bg-rose-500/10 border-rose-500/20 py-2 rounded-2xl flex items-center justify-center font-bold text-white text-sm shadow-[inset_0_0_20px_rgba(244,63,94,0.1)]">14</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Model Demo -->
+        <section id="try-model" class="py-32 bg-slate-950 relative overflow-hidden">
+            <!-- Ambient glow -->
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent"></div>
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-cyan-500/5 blur-[140px] rounded-full pointer-events-none"></div>
+
+            <div class="max-w-5xl mx-auto px-6 relative z-10">
+                <div class="text-center mb-14">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-xs font-semibold text-cyan-400 mb-6 mx-auto">
+                        <i data-lucide="microscope" class="w-3 h-3"></i> Interactive Model Demo
+                    </div>
+                    <h2 class="text-4xl md:text-5xl font-bold text-white mb-5 tracking-tight">Try the <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-400">Model</span></h2>
+                    <p class="text-base text-slate-500 max-w-xl mx-auto leading-relaxed">
+                        Upload a coral reef image or pick a sample to run real-time inference with EfficientNet-V4 Robust. Results include confidence scores and classification explanations.
+                    </p>
+                </div>
+
+                <div class="p-8 md:p-12 rounded-[36px] bg-white/4 border border-white/10 backdrop-blur-xl shadow-2xl">
+                    <!-- Hidden file input -->
+                    <input type="file" id="demo-file-input" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+
+                    <!-- Idle State -->
+                    <div id="demo-idle">
+                        <div id="upload-zone"
+                             class="relative w-full border-2 border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center p-8 mb-10 cursor-pointer hover:border-cyan-500/30 hover:bg-white/3 transition-all overflow-hidden"
+                             style="aspect-ratio: 2.5 / 1;"
+                             onclick="document.getElementById('demo-file-input').click()"
+                             ondragover="event.preventDefault(); this.classList.add('border-cyan-500/40','bg-cyan-500/5')"
+                             ondragleave="this.classList.remove('border-cyan-500/40','bg-cyan-500/5')"
+                             ondrop="handleFileDrop(event)">
+                            <div id="upload-placeholder" class="flex flex-col items-center">
+                                <div class="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-5">
+                                    <i data-lucide="upload" class="w-7 h-7 text-cyan-400"></i>
+                                </div>
+                                <h3 class="text-base font-bold text-white mb-1">Drag &amp; Drop Coral Image</h3>
+                                <p class="text-xs text-slate-500">PNG, JPG, or HEIC &middot; Max 10MB</p>
+                            </div>
+                            <img id="upload-preview" src="" alt="Preview" class="hidden absolute inset-0 w-full h-full object-contain rounded-3xl">
+                            <div id="upload-badge" class="hidden absolute top-3 left-3 px-2.5 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-[10px] font-bold text-cyan-400 border border-cyan-500/20">Analysis in progress &mdash; Please wait</div>
+                        </div>
+
+                        <div class="flex justify-center gap-3">
+                            <button onclick="runAssessment()" id="run-btn" class="px-10 py-4 rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-base shadow-[0_0_40px_rgba(6,182,212,0.25)] hover:shadow-[0_0_60px_rgba(6,182,212,0.4)] transition-all">
+                                Run Assessment
+                            </button>
+                        </div>
+                        <p class="text-center text-xs text-slate-600 mt-4">Upload your own image or click Run Assessment for a demo</p>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="demo-loading" class="hidden flex-col items-center justify-center py-20 gap-6">
+                        <div class="relative">
+                            <div class="w-20 h-20 rounded-full border-2 border-cyan-500/20 flex items-center justify-center">
+                                <i data-lucide="loader-2" class="w-9 h-9 text-cyan-400 animate-spin"></i>
+                            </div>
+                            <div class="absolute inset-0 rounded-full bg-cyan-500/5 animate-ping"></div>
+                        </div>
+                        <div class="text-center">
+                            <h3 class="text-xl font-bold text-white mb-1" id="loading-title">EfficientNet-V4 Robust Analysis</h3>
+                            <p class="text-sm text-slate-500">Ensemble Model &middot; Inference in progress</p>
+                        </div>
+                        <div class="w-72 h-1.5 bg-white/8 rounded-full overflow-hidden">
+                            <div id="loading-bar" class="h-full bg-gradient-to-r from-cyan-500 to-teal-500 rounded-full" style="width: 0%; transition: width 2.1s ease-in-out;"></div>
+                        </div>
+                        <p class="text-[10px] font-medium text-slate-600 uppercase tracking-widest">Applying Grad-CAM visualization&hellip;</p>
+                    </div>
+
+                    <!-- Result State -->
+                    <div id="demo-result" style="display:none;" class="grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
+                        <div class="relative rounded-2xl overflow-hidden border border-white/10 bg-slate-900" style="aspect-ratio: 1;">
+                            <img id="result-img" src="" alt="Analyzed coral" class="w-full h-full object-cover">
+                            <div class="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-[10px] font-bold text-white/60 border border-white/10">Original Image</div>
+                        </div>
+
+                        <div>
+                            <div class="text-[10px] font-bold text-white uppercase tracking-widest mb-3">Classification Result</div>
+                            <div id="result-badge" class="inline-flex items-center gap-3 px-5 py-3 rounded-2xl mb-4 border">
+                                <i id="result-icon" class="w-5 h-5"></i>
+                                <span id="result-label" class="text-lg font-bold tracking-tight"></span>
+                            </div>
+                            <p id="result-desc" class="text-sm text-white leading-relaxed mb-6"></p>
+
+                            <!-- Confidence Score -->
+                            <div class="p-5 rounded-2xl bg-white/4 border border-white/8 mb-4">
+                                <div class="flex justify-between items-center mb-3">
+                                    <span class="text-xs font-semibold text-white">Confidence Score</span>
+                                    <span id="result-conf" class="text-sm font-bold"></span>
+                                </div>
+                                <div class="h-2 w-full bg-white/8 rounded-full overflow-hidden">
+                                    <div id="result-bar" class="h-full rounded-full" style="width: 0%; transition: width 1.2s 0.3s ease-out;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Per-class probability bars -->
+                            <div class="p-4 rounded-2xl bg-white/4 border border-white/8 mb-6">
+                                <div class="text-[10px] font-bold text-white uppercase tracking-widest mb-3">Class Probabilities</div>
+                                <div id="result-probs" class="space-y-3"></div>
+                            </div>
+
+                            <div class="flex gap-3 flex-wrap">
+                                <button onclick="resetDemo()" class="flex items-center gap-2 px-5 py-3 rounded-full bg-white/5 hover:bg-white/10 text-white font-semibold text-sm border border-white/10 hover:border-white/20 transition-all">
+                                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i> New Upload
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grad-CAM Analysis Section (3 panels) -->
+                    <div id="demo-gradcam" class="hidden mt-10">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.4)]"></div>
+                            <h3 class="text-lg font-bold text-white">Grad-CAM Explainability</h3>
+                            <span class="text-[10px] font-medium text-slate-600 uppercase tracking-widest">EfficientNet-V4 Robust</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <!-- Original Image -->
+                            <div class="rounded-2xl overflow-hidden border border-slate-700/80 bg-slate-900/50 group hover:border-slate-500/80 transition-all">
+                                <div class="relative" style="aspect-ratio: 1;">
+                                    <img id="gc-original" src="" alt="Original Uploaded Image" class="w-full h-full object-cover">
+                                </div>
+                                <div class="px-4 py-3 border-t border-white/5">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
+                                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Original Image</span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500 leading-relaxed">Image used for model prediction</p>
+                                </div>
+                            </div>
+                            <!-- Grad-CAM Heatmap -->
+                            <div class="rounded-2xl overflow-hidden border border-amber-500/40 bg-slate-900/50 group hover:border-amber-400/60 transition-all">
+                                <div class="relative" style="aspect-ratio: 1;">
+                                    <img id="gc-heatmap" src="" alt="Grad-CAM Heatmap" class="w-full h-full object-cover">
+                                </div>
+                                <div class="px-4 py-3 border-t border-white/5">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
+                                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Grad-CAM Heatmap</span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500 leading-relaxed">Raw attention intensity only</p>
+                                    <div class="mt-3">
+                                        <div class="h-1.5 rounded-full bg-gradient-to-r from-blue-600 via-green-400 to-red-600"></div>
+                                        <div class="mt-1 flex items-center justify-between text-[10px] font-medium uppercase tracking-widest text-slate-600">
+                                            <span>Low Activation</span>
+                                            <span>High Activation</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Grad-CAM Overlay -->
+                            <div class="rounded-2xl overflow-hidden border border-teal-500/35 bg-slate-900/50 group hover:border-teal-400/55 transition-all">
+                                <div class="relative" style="aspect-ratio: 1;">
+                                    <img id="gc-overlay" src="" alt="Grad-CAM Overlay" class="w-full h-full object-cover">
+                                </div>
+                                <div class="px-4 py-3 border-t border-white/5">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-teal-400"></div>
+                                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Grad-CAM Overlay</span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500 leading-relaxed">Attention projected onto the coral photo</p>
+                                    <p class="mt-3 text-[10px] font-medium uppercase tracking-widest text-teal-400/80">Highlighted contour marks the strongest evidence region</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+        </section>
+    </main>
+
+    <footer class="relative bg-slate-950 border-t border-white/5 overflow-hidden">
+        <!-- Top glow -->
+        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent"></div>
+        <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-64 bg-cyan-500/3 blur-[100px] rounded-full pointer-events-none"></div>
+
+        <div class="max-w-7xl mx-auto px-6 pt-20 pb-10 relative z-10">
+            <!-- Top row -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-16">
+                <!-- Brand -->
+                <div class="lg:col-span-2">
+                    <a href="#" class="flex items-center gap-2.5 mb-6 group w-fit">
+                        <div class="relative">
+                            <i data-lucide="waves" class="w-7 h-7 text-cyan-400 group-hover:text-cyan-300 transition-colors"></i>
+                            <div class="absolute inset-0 bg-cyan-400/20 blur-md rounded-full"></div>
+                        </div>
+                        <span class="text-lg font-bold tracking-tight text-white">Coral Health <span class="text-cyan-400">AI</span></span>
+                    </a>
+                    <p class="text-sm text-slate-500 leading-relaxed mb-8 max-w-xs">
+                        Protecting the world's most vital marine ecosystems through state-of-the-art deep learning and real-time reef monitoring technology.
+                    </p>
+                    <!-- Social icons -->
+                    <div class="flex items-center gap-3">
+                        <a href="#" class="w-9 h-9 rounded-xl bg-white/5 hover:bg-cyan-500/10 border border-white/8 hover:border-cyan-500/20 flex items-center justify-center text-slate-400 hover:text-cyan-400 transition-all">
+                            <i data-lucide="github" class="w-4 h-4"></i>
+                        </a>
+                        <a href="#" class="w-9 h-9 rounded-xl bg-white/5 hover:bg-cyan-500/10 border border-white/8 hover:border-cyan-500/20 flex items-center justify-center text-slate-400 hover:text-cyan-400 transition-all">
+                            <i data-lucide="twitter" class="w-4 h-4"></i>
+                        </a>
+                        <a href="#" class="w-9 h-9 rounded-xl bg-white/5 hover:bg-cyan-500/10 border border-white/8 hover:border-cyan-500/20 flex items-center justify-center text-slate-400 hover:text-cyan-400 transition-all">
+                            <i data-lucide="linkedin" class="w-4 h-4"></i>
+                        </a>
+                        <a href="#" class="w-9 h-9 rounded-xl bg-white/5 hover:bg-cyan-500/10 border border-white/8 hover:border-cyan-500/20 flex items-center justify-center text-slate-400 hover:text-cyan-400 transition-all">
+                            <i data-lucide="mail" class="w-4 h-4"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Product column -->
+                <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-widest mb-5">Product</h4>
+                    <ul class="space-y-3.5">
+                        <li><a href="#" class="text-sm text-slate-500 hover:text-cyan-400 transition-colors">API Reference</a></li>
+                        <li><a href="#" class="text-sm text-slate-500 hover:text-cyan-400 transition-colors">Model Cards</a></li>
+                        <li><a href="#" class="text-sm text-slate-500 hover:text-cyan-400 transition-colors">Integrations</a></li>
+                        <li><a href="#" class="text-sm text-slate-500 hover:text-cyan-400 transition-colors">Changelog</a></li>
+                    </ul>
+                </div>
+
+                <!-- Research column -->
+                <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-widest mb-5">Research</h4>
+                    <ul class="space-y-3.5">
+                        <li><a href="#" class="text-sm text-slate-500 hover:text-cyan-400 transition-colors">Whitepapers</a></li>
+                        <li><a href="#" class="text-sm text-slate-500 hover:text-cyan-400 transition-colors">Datasets</a></li>
+                        <li><a href="#" class="text-sm text-slate-500 hover:text-cyan-400 transition-colors">Partnerships</a></li>
+                        <li><a href="#" class="text-sm text-slate-500 hover:text-cyan-400 transition-colors">Benchmarks</a></li>
+                    </ul>
+                </div>
+
+                <!-- Company column -->
+                <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-widest mb-5">Company</h4>
+                    <ul class="space-y-3.5">
+                        <li><a href="#" class="text-sm text-slate-500 hover:text-cyan-400 transition-colors">About Us</a></li>
+                        <li><a href="#" class="text-sm text-slate-500 hover:text-cyan-400 transition-colors">Careers</a></li>
+                        <li><a href="#" class="text-sm text-slate-500 hover:text-cyan-400 transition-colors">Press</a></li>
+                        <li><a href="#" class="text-sm text-slate-500 hover:text-cyan-400 transition-colors">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Newsletter strip -->
+            <div class="p-6 rounded-2xl bg-white/3 border border-white/8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 mb-12">
+                <div>
+                    <p class="text-sm font-bold text-white mb-1">Stay informed</p>
+                    <p class="text-xs text-slate-500">Model updates, research papers, and conservation alerts.</p>
+                </div>
+                <div class="flex gap-3 w-full sm:w-auto shrink-0">
+                    <input type="email" placeholder="your@email.com" class="flex-1 sm:w-56 px-4 py-2.5 rounded-full bg-white/5 border border-white/10 text-sm text-white placeholder:text-slate-600 outline-none focus:border-cyan-500/40 transition-colors">
+                    <button class="px-5 py-2.5 rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-sm font-bold transition-all whitespace-nowrap">Subscribe</button>
+                </div>
+            </div>
+
+            <!-- Bottom bar -->
+            <div class="pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p class="text-xs text-slate-600 font-medium">&copy; 2026 Coral Health AI. Built to protect our reefs.</p>
+                <div class="flex items-center gap-6">
+                    <a href="#" class="text-xs text-slate-600 hover:text-slate-400 transition-colors">Privacy Policy</a>
+                    <a href="#" class="text-xs text-slate-600 hover:text-slate-400 transition-colors">Terms of Service</a>
+                    <a href="#" class="text-xs text-slate-600 hover:text-slate-400 transition-colors">Cookie Policy</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ── Lucide Icons ────────────────────────────────────────────────
+        lucide.createIcons();
+
+        // ── Global State & Config ───────────────────────────────────────
+        let _demoFile = null;
+        let _isAssessing = false;
+
+
+        const RESULT_CONFIG = {
+            Healthy: {
+                iconName: 'check-circle-2',
+                color:    'text-teal-400',
+                bg:       'bg-teal-500/10',
+                border:   'border-teal-500/20',
+                barColor: 'bg-teal-500',
+                barGlow:  '0 0 12px rgba(20,184,166,0.5)',
+                label:    'Coral is Healthy',
+                desc:     'Normal polyp activity detected. Symbiotic zooxanthellae algae are present and the coral shows vibrant coloration consistent with a thriving colony.',
+                gradcam:  'rgba(20,184,166,0.45)'
+            },
+            Bleached: {
+                iconName: 'alert-circle',
+                color:    'text-amber-400',
+                bg:       'bg-amber-500/10',
+                border:   'border-amber-500/20',
+                barColor: 'bg-amber-500',
+                barGlow:  '0 0 12px rgba(245,158,11,0.5)',
+                label:    'Coral is Bleached',
+                desc:     'Symbiotic algae expulsion detected. The coral has expelled its zooxanthellae due to thermal stress, resulting in the characteristic white appearance. Immediate monitoring recommended.',
+                gradcam:  'rgba(245,158,11,0.45)'
+            },
+            Dead: {
+                iconName: 'skull',
+                color:    'text-rose-400',
+                bg:       'bg-rose-500/10',
+                border:   'border-rose-500/20',
+                barColor: 'bg-rose-500',
+                barGlow:  '0 0 12px rgba(244,63,94,0.5)',
+                label:    'Coral is Dead',
+                desc:     'Coral skeleton exposure confirmed. The tissue has been lost and algae colonization is visible on the exposed calcium carbonate skeleton.',
+                gradcam:  'rgba(244,63,94,0.45)'
+            }
+        };
+
+        // ── Header: transparent → blur on scroll ────────────────────────
+        const siteHeader = document.getElementById('site-header');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 30) {
+                siteHeader.classList.add('bg-slate-950/80', 'backdrop-blur-xl', 'border-b', 'border-white/8', 'shadow-2xl', 'shadow-slate-950/50');
+            } else {
+                siteHeader.classList.remove('bg-slate-950/80', 'backdrop-blur-xl', 'border-b', 'border-white/8', 'shadow-2xl', 'shadow-slate-950/50');
+            }
+        }, { passive: true });
+
+        // ── Mobile nav toggle ───────────────────────────────────────────
+        const mobileToggle = document.getElementById('mobile-toggle');
+        const mobileNav    = document.getElementById('mobile-nav');
+        if (mobileToggle && mobileNav) {
+            mobileToggle.addEventListener('click', () => {
+                mobileNav.classList.toggle('hidden');
+            });
+        }
+        function closeMobileNav() {
+            if (mobileNav) mobileNav.classList.add('hidden');
+        }
+
+        // ── Intersection Observer for reveal animations ─────────────────
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+
+                    entry.target.querySelectorAll('.counter').forEach(c => animateCounter(c));
+
+                    entry.target.querySelectorAll('[data-width]').forEach(bar => {
+                        bar.style.width = bar.getAttribute('data-width') + '%';
+                    });
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+        document.querySelectorAll('.animate-reveal').forEach(el => observer.observe(el));
+
+        // ── Animated counter ────────────────────────────────────────────
+        function animateCounter(el) {
+            const target    = parseFloat(el.getAttribute('data-target'));
+            const duration  = 2000;
+            const startTime = performance.now();
+
+            function update(now) {
+                const progress     = Math.min((now - startTime) / duration, 1);
+                const ease         = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+                const current      = target * ease;
+                el.innerText       = target % 1 === 0 ? Math.floor(current) : current.toFixed(2);
+                if (progress < 1) requestAnimationFrame(update);
+            }
+            requestAnimationFrame(update);
+        }
+
+        // ── Training convergence charts (Two separate graphs) ──────────
+        const verticalLinePlugin = {
+            id: 'verticalLine',
+            afterDraw(chart) {
+                if (chart.tooltip._active && chart.tooltip._active.length) {
+                    const c2 = chart.ctx;
+                    const x = chart.tooltip._active[0].element.x;
+                    const topY = chart.scales.y.top;
+                    const bottomY = chart.scales.y.bottom;
+                    c2.save();
+                    c2.beginPath();
+                    c2.moveTo(x, topY);
+                    c2.lineTo(x, bottomY);
+                    c2.lineWidth = 1;
+                    c2.strokeStyle = 'rgba(255,255,255,0.15)';
+                    c2.setLineDash([4, 4]);
+                    c2.stroke();
+                    c2.restore();
+                }
+            }
+        };
+
+        // Epoch labels (1–30)
+        const epochLabels = Array.from({length: 30}, (_, i) => i + 1);
+
+        // Training data (smoothed curves matching notebook output)
+        const trainAccData = [
+            0.62, 0.65, 0.70, 0.75, 0.78, 0.81, 0.84, 0.86, 0.88, 0.895,
+            0.905, 0.91, 0.915, 0.92, 0.925, 0.93, 0.932, 0.935, 0.937, 0.938,
+            0.939, 0.94, 0.941, 0.942, 0.943, 0.944, 0.945, 0.946, 0.947, 0.948
+        ];
+        const valAccData = [
+            0.88, 0.89, 0.91, 0.93, 0.945, 0.955, 0.96, 0.965, 0.968, 0.97,
+            0.972, 0.975, 0.977, 0.978, 0.98, 0.982, 0.984, 0.986, 0.988, 0.99,
+            0.991, 0.992, 0.993, 0.994, 0.995, 0.996, 0.997, 0.998, 0.999, 1.0
+        ];
+        const trainLossData = [
+            1.00, 0.78, 0.62, 0.52, 0.45, 0.40, 0.37, 0.35, 0.33, 0.31,
+            0.30, 0.29, 0.285, 0.28, 0.275, 0.27, 0.265, 0.26, 0.255, 0.25,
+            0.248, 0.245, 0.243, 0.24, 0.238, 0.236, 0.234, 0.232, 0.23, 0.228
+        ];
+        const valLossData = [
+            0.42, 0.30, 0.20, 0.14, 0.10, 0.08, 0.065, 0.055, 0.048, 0.042,
+            0.038, 0.035, 0.032, 0.030, 0.028, 0.026, 0.025, 0.024, 0.023, 0.022,
+            0.021, 0.020, 0.019, 0.018, 0.017, 0.016, 0.015, 0.014, 0.013, 0.012
+        ];
+
+        const sharedTooltipOptions = {
+            backgroundColor: 'rgba(2,6,23,0.95)',
+            titleColor: '#94a3b8',
+            bodyColor: '#ffffff',
+            borderColor: 'rgba(6,182,212,0.25)',
+            borderWidth: 1,
+            padding: 12,
+            boxPadding: 4,
+            usePointStyle: true,
+            callbacks: {
+                title: (items) => 'Epoch ' + items[0].label
+            }
+        };
+
+        // ── Accuracy Chart ──
+        const accCtx = document.getElementById('accuracyChart').getContext('2d');
+        new Chart(accCtx, {
+            type: 'line',
+            plugins: [verticalLinePlugin],
+            data: {
+                labels: epochLabels,
+                datasets: [{
+                    label: 'Train Accuracy',
+                    data: trainAccData,
+                    borderColor: '#5B5BEB',
+                    backgroundColor: 'rgba(91,91,235,0.05)',
+                    fill: false,
+                    tension: 0.4,
+                    borderWidth: 2.5,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: '#5B5BEB',
+                    pointBorderColor: '#0f172a',
+                    pointBorderWidth: 2
+                }, {
+                    label: 'Val Accuracy',
+                    data: valAccData,
+                    borderColor: '#1CCC8C',
+                    backgroundColor: 'rgba(28,204,140,0.05)',
+                    fill: false,
+                    tension: 0.4,
+                    borderWidth: 2.5,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: '#1CCC8C',
+                    pointBorderColor: '#0f172a',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            color: '#ffffff',
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            font: { size: 9 },
+                            padding: 10,
+                            boxWidth: 6
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(2,6,23,0.95)',
+                        titleColor: '#94a3b8',
+                        bodyColor: '#ffffff',
+                        borderColor: 'rgba(6,182,212,0.25)',
+                        borderWidth: 1,
+                        padding: 12,
+                        boxPadding: 4,
+                        usePointStyle: true,
+                        callbacks: {
+                            title: (items) => 'Epoch ' + items[0].label,
+                            label: (item) => '  ' + item.dataset.label + ': ' + (item.parsed.y * 100).toFixed(2) + '%'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        min: 0.60,
+                        max: 1.02,
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: {
+                            color: '#ffffff',
+                            font: { size: 9 },
+                            callback: (v) => v.toFixed(2),
+                            stepSize: 0.05
+                        },
+                        title: { display: true, text: 'Accuracy', color: '#94a3b8', font: { size: 9 } }
+                    },
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#ffffff', font: { size: 9 }, maxTicksLimit: 7 },
+                        title: { display: true, text: 'Epoch', color: '#94a3b8', font: { size: 9 } }
+                    }
+                }
+            }
+        });
+
+        // ── Loss Chart ──
+        const lossCtx = document.getElementById('lossChart').getContext('2d');
+        new Chart(lossCtx, {
+            type: 'line',
+            plugins: [verticalLinePlugin],
+            data: {
+                labels: epochLabels,
+                datasets: [{
+                    label: 'Train Loss',
+                    data: trainLossData,
+                    borderColor: '#F05050',
+                    backgroundColor: 'rgba(240,80,80,0.05)',
+                    fill: false,
+                    tension: 0.4,
+                    borderWidth: 2.5,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: '#F05050',
+                    pointBorderColor: '#0f172a',
+                    pointBorderWidth: 2
+                }, {
+                    label: 'Val Loss',
+                    data: valLossData,
+                    borderColor: '#F5A623',
+                    backgroundColor: 'rgba(245,166,35,0.05)',
+                    fill: false,
+                    tension: 0.4,
+                    borderWidth: 2.5,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: '#F5A623',
+                    pointBorderColor: '#0f172a',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            color: '#ffffff',
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            font: { size: 9 },
+                            padding: 10,
+                            boxWidth: 6
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(2,6,23,0.95)',
+                        titleColor: '#94a3b8',
+                        bodyColor: '#ffffff',
+                        borderColor: 'rgba(6,182,212,0.25)',
+                        borderWidth: 1,
+                        padding: 12,
+                        boxPadding: 4,
+                        usePointStyle: true,
+                        callbacks: {
+                            title: (items) => 'Epoch ' + items[0].label,
+                            label: (item) => '  ' + item.dataset.label + ': ' + item.parsed.y.toFixed(4)
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        min: 0,
+                        max: 1.05,
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: {
+                            color: '#ffffff',
+                            font: { size: 9 },
+                            callback: (v) => v.toFixed(2),
+                            stepSize: 0.20
+                        },
+                        title: { display: true, text: 'Loss', color: '#94a3b8', font: { size: 9 } }
+                    },
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#ffffff', font: { size: 9 }, maxTicksLimit: 7 },
+                        title: { display: true, text: 'Epoch', color: '#94a3b8', font: { size: 9 } }
+                    }
+                }
+            }
+        });
+
+
+        function runSample(type) {
+            const sample = SAMPLES[type];
+            if (!sample) return;
+
+            document.getElementById('demo-idle').classList.add('hidden');
+            document.getElementById('demo-result').classList.add('hidden');
+            const loadingEl = document.getElementById('demo-loading');
+            loadingEl.classList.remove('hidden');
+            loadingEl.style.display = 'flex';
+
+            // animate loading bar
+            const loadingBar = document.getElementById('loading-bar');
+            loadingBar.style.width = '0%';
+            loadingBar.style.transition = 'none';
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    loadingBar.style.transition = 'width 2.1s cubic-bezier(0.4,0,0.2,1)';
+                    loadingBar.style.width = '100%';
+                });
+            });
+
+            setTimeout(() => {
+                loadingEl.classList.add('hidden');
+                loadingEl.style.display = ''; // Clear inline display so hidden class works
+                showResult(sample);
+            }, 2200);
+        }
+
+        // ── File upload handlers ─────────────────────────────────────────
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) setDemoFile(file);
+        }
+
+        function handleFileDrop(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('border-cyan-500/40', 'bg-cyan-500/5');
+            const file = event.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) setDemoFile(file);
+        }
+
+        function setDemoFile(file) {
+            _demoFile = file;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('upload-placeholder').classList.add('hidden');
+                const preview = document.getElementById('upload-preview');
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                document.getElementById('upload-badge').classList.remove('hidden');
+                
+                // Clear input value to allow re-uploading the same file
+                event.target.value = '';
+                
+                // Automatically run assessment after preview is ready
+                setTimeout(() => {
+                    runAssessment();
+                }, 400);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ── Main assessment entry point ──────────────────────────────────
+        async function runAssessment() {
+            if (_isAssessing) return;
+            _isAssessing = true;
+
+            if (!_demoFile) {
+                // No file selected — run sample demo
+                runSample('healthy');
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('demo-idle').classList.add('hidden');
+            document.getElementById('demo-result').classList.add('hidden'); // Use hidden class
+            const loadingEl = document.getElementById('demo-loading');
+            document.getElementById('loading-title').textContent = 'EfficientNet-V4 Robust Analysis';
+            loadingEl.classList.remove('hidden'); // Use hidden class
+            loadingEl.style.display = 'flex'; // Keep flex for layout but hidden class was likely the blocker
+
+            // Animate loading bar to 90% while waiting
+            const loadingBar = document.getElementById('loading-bar');
+            loadingBar.style.width = '0%';
+            loadingBar.style.transition = 'none';
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    loadingBar.style.transition = 'width 3.5s cubic-bezier(0.4,0,0.2,1)';
+                    loadingBar.style.width = '90%';
+                });
+            });
+
+            try {
+                const formData = new FormData();
+                formData.append('image', _demoFile);
+
+                const response = await fetch('/api/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || 'Server error (' + response.status + ')');
+                }
+
+                const data = await response.json();
+
+                // Complete the loading bar
+                loadingBar.style.transition = 'width 0.3s ease-out';
+                loadingBar.style.width = '100%';
+
+                await new Promise(r => setTimeout(r, 380));
+                loadingEl.classList.add('hidden');
+                loadingEl.style.display = ''; // Clear inline display so hidden class works
+                showRealResult(data);
+
+            } catch (err) {
+                loadingEl.classList.add('hidden');
+                loadingEl.style.display = ''; // Clear inline display so hidden class works
+                document.getElementById('demo-idle').classList.remove('hidden');
+                console.error('Assessment error:', err);
+                alert('Assessment failed: ' + err.message);
+            } finally {
+                _isAssessing = false;
+            }
+        }
+
+        // ── Display real API result ──────────────────────────────────────
+        function showRealResult(data) {
+            const cfg = RESULT_CONFIG[data.prediction] || RESULT_CONFIG.Healthy;
+
+            // Uploaded image
+            document.getElementById('result-img').src =
+                'data:image/png;base64,' + data.original_image;
+
+            // Grad-CAM three-panel section
+            const gcSection = document.getElementById('demo-gradcam');
+            const hasGradcamAssets =
+                data.original_image &&
+                data.gradcam &&
+                data.gradcam.heatmap &&
+                data.gradcam.overlay &&
+                data.gradcam.raw_mask;
+
+            if (hasGradcamAssets) {
+                document.getElementById('gc-original').src = 'data:image/png;base64,' + data.original_image;
+                document.getElementById('gc-heatmap').src = 'data:image/png;base64,' + data.gradcam.heatmap;
+                document.getElementById('gc-overlay').src = 'data:image/png;base64,' + data.gradcam.overlay;
+                gcSection.classList.remove('hidden');
+
+                // Staggered fade-in animation
+                const gcImgs = [
+                    document.getElementById('gc-original'),
+                    document.getElementById('gc-heatmap'),
+                    document.getElementById('gc-overlay')
+                ];
+                gcImgs.forEach((img, i) => {
+                    img.style.opacity = '0';
+                    img.style.transform = 'translateY(10px) scale(0.98)';
+                    img.style.transition = 'all 0.5s ease-out';
+                    setTimeout(() => {
+                        img.style.opacity = '1';
+                        img.style.transform = 'translateY(0) scale(1)';
+                    }, 200 + i * 120);
+                });
+            } else {
+                gcSection.classList.add('hidden');
+            }
+
+            // Badge
+            const badge = document.getElementById('result-badge');
+            const icon  = document.getElementById('result-icon');
+            const lbl   = document.getElementById('result-label');
+            badge.className = 'inline-flex items-center gap-3 px-5 py-3 rounded-2xl mb-4 border ' + cfg.bg + ' ' + cfg.border;
+            icon.setAttribute('data-lucide', cfg.iconName);
+            icon.className  = 'w-5 h-5 ' + cfg.color;
+            lbl.className   = 'text-lg font-bold ' + cfg.color;
+            lbl.textContent = cfg.label;
+
+            // Description
+            const statusDesc = (data.status && data.status.description)
+                ? data.status.description : cfg.desc;
+            document.getElementById('result-desc').textContent = statusDesc;
+
+            // Confidence bar
+            const confEl = document.getElementById('result-conf');
+            const bar    = document.getElementById('result-bar');
+            confEl.textContent  = data.confidence.toFixed(1) + '%';
+            confEl.className    = 'text-sm font-bold ' + cfg.color;
+            bar.className       = 'h-full rounded-full transition-all duration-[1200ms] ease-out ' + cfg.barColor;
+            bar.style.boxShadow = cfg.barGlow;
+            bar.style.width     = '0%';
+            setTimeout(() => { bar.style.width = data.confidence + '%'; }, 150);
+
+            // Per-class probability bars (Healthy / Bleached / Dead)
+            const probsEl = document.getElementById('result-probs');
+            probsEl.innerHTML = '';
+            const probs = data.probabilities || {};
+            // Ensure consistent order: Healthy, Bleached, Dead
+            ['Healthy', 'Bleached', 'Dead'].forEach(cls => {
+                const pct = probs[cls] !== undefined ? probs[cls] : 0;
+                const c   = RESULT_CONFIG[cls] || RESULT_CONFIG.Healthy;
+                probsEl.innerHTML += `
+                    <div class="flex items-center justify-between text-xs gap-2">
+                        <span class="${c.color} font-semibold w-16 shrink-0">${cls}</span>
+                        <div class="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                            <div class="${c.barColor} h-full rounded-full transition-all duration-[1200ms] ease-out" style="width:0%" data-prob="${pct}"></div>
+                        </div>
+                        <span class="text-white w-12 text-right tabular-nums">${pct.toFixed(1)}%</span>
+                    </div>`;
+            });
+
+            // Show result grid
+            const resultEl = document.getElementById('demo-result');
+            resultEl.classList.remove('hidden'); // Ensure hidden class is removed
+            resultEl.style.display = 'grid';
+            lucide.createIcons();
+
+            // Animate probability bars after paint
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    probsEl.querySelectorAll('[data-prob]').forEach(b => {
+                        b.style.width = b.getAttribute('data-prob') + '%';
+                    });
+                });
+            });
+        }
+
+        function showResult(sample) {
+            const cfg = RESULT_CONFIG[sample.result] || RESULT_CONFIG.Healthy;
+
+            // image
+            const img = document.getElementById('result-img');
+            img.src   = sample.src;
+            img.alt   = sample.result + ' coral';
+
+            // badge
+            const badge = document.getElementById('result-badge');
+            const icon  = document.getElementById('result-icon');
+            const lbl   = document.getElementById('result-label');
+            badge.className = 'inline-flex items-center gap-3 px-5 py-3 rounded-2xl mb-4 border ' + cfg.bg + ' ' + cfg.border;
+            icon.setAttribute('data-lucide', cfg.iconName);
+            icon.className  = 'w-5 h-5 ' + cfg.color;
+            lbl.className   = 'text-lg font-bold ' + cfg.color;
+            lbl.textContent = cfg.label;
+
+            // description
+            document.getElementById('result-desc').textContent = cfg.desc;
+
+            // confidence bar
+            const confEl = document.getElementById('result-conf');
+            const bar    = document.getElementById('result-bar');
+            confEl.textContent  = sample.conf.toFixed(1) + '%';
+            confEl.className    = 'text-sm font-bold ' + cfg.color;
+            bar.className       = 'h-full rounded-full transition-all duration-[1200ms] ease-out ' + cfg.barColor;
+            bar.style.boxShadow = cfg.barGlow;
+            bar.style.width     = '0%';
+            setTimeout(() => { bar.style.width = sample.conf + '%'; }, 150);
+
+            // Per-class probability bars
+            const probsEl = document.getElementById('result-probs');
+            probsEl.innerHTML = '';
+            ['Healthy', 'Bleached', 'Dead'].forEach(cls => {
+                const pct = sample.probs[cls] !== undefined ? sample.probs[cls] : 0;
+                const c   = RESULT_CONFIG[cls] || RESULT_CONFIG.Healthy;
+                probsEl.innerHTML += `
+                    <div class="flex items-center justify-between text-xs gap-2">
+                        <span class="${c.color} font-semibold w-16 shrink-0">${cls}</span>
+                        <div class="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                            <div class="${c.barColor} h-full rounded-full transition-all duration-[1200ms] ease-out" style="width:0%" data-prob="${pct}"></div>
+                        </div>
+                        <span class="text-slate-400 w-12 text-right tabular-nums">${pct.toFixed(1)}%</span>
+                    </div>`;
+            });
+
+            const resultEl = document.getElementById('demo-result');
+            resultEl.classList.remove('hidden');
+            resultEl.style.display = 'grid';
+            lucide.createIcons();
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    probsEl.querySelectorAll('[data-prob]').forEach(b => {
+                        b.style.width = b.getAttribute('data-prob') + '%';
+                    });
+                });
+            });
+        }
+
+        function resetDemo() {
+            _demoFile = null;
+            // Reset upload zone
+            const placeholder = document.getElementById('upload-placeholder');
+            const preview     = document.getElementById('upload-preview');
+            const badge       = document.getElementById('upload-badge');
+            if (placeholder) placeholder.classList.remove('hidden');
+            if (preview)     { preview.classList.add('hidden'); preview.src = ''; }
+            if (badge)       badge.classList.add('hidden');
+            const fi = document.getElementById('demo-file-input');
+            if (fi) fi.value = '';
+
+            document.getElementById('demo-result').classList.add('hidden');
+            document.getElementById('demo-result').style.display = '';
+            document.getElementById('demo-gradcam').classList.add('hidden');
+            document.getElementById('demo-idle').classList.remove('hidden');
+
+            const bar = document.getElementById('result-bar');
+            if (bar) { bar.style.transition = 'none'; bar.style.width = '0%'; }
+        }
+
+        function handleDrop(event) {
+            // legacy — delegate to new handler
+            event.preventDefault();
+            event.currentTarget.classList.remove('border-cyan-500/40', 'bg-cyan-500/5');
+            runSample('bleached');
+        }
+    </script>
+</body>
+</html>

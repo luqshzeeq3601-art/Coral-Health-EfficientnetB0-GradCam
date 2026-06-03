@@ -1,0 +1,9 @@
+tensorflow
+numpy<2.0.0
+pandas
+opencv-python<4.10.0
+matplotlib
+flask
+Pillow
+flask-cors
+google-genai
