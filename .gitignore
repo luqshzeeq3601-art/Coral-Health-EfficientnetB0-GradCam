@@ -35,6 +35,11 @@ __pycache__/
 *.pkl
 *.joblib
 
+# Unignore specific models for user
+!02_Modelling/efficientnetb0_coral/models/*.h5
+!02_Modelling/efficientnetb0_coral/models/*.weights.h5
+
+
 # Datasets & archives
 *.rar
 *.zip
