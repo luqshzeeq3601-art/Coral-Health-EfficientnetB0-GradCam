@@ -25,8 +25,8 @@ __pycache__/
 *.pyc
 
 # Model weights (too large for GitHub)
-*.h5
-*.weights.h5
+# *.h5
+# *.weights.h5
 *.tflite
 *.onnx
 *.pb
@@ -34,6 +34,10 @@ __pycache__/
 *.pt
 *.pkl
 *.joblib
+
+# Ignore ConvNeXt models (exceed 100MB size limit)
+02_Modelling/convnexttiny_coral/models/*.weights.h5
+
 
 # Unignore specific models for user
 !02_Modelling/efficientnetb0_coral/models/*.h5
