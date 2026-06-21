@@ -1,0 +1,108 @@
+# AI Chatbot Page — Full-Page LLM Chat with Coral Result Context
+
+Add a dedicated, full-page **AI Chatbot** screen to the Coral Mobile app. The chatbot communicates with the local Qwen 2.5 LLM (via the Flask backend's `/api/chat` endpoint) and can automatically read and explain coral analysis results.
+
+## Current State
+
+The app currently has a **bottom-sheet mini-chat** (`_ReefGuideDrawer`) inside [result_page.dart](file:///c:/Users/luqma/OneDrive/Desktop/CHI/BASEPROJECT/09_MobileApps/Coral%20Mobile%20-%20Codex/lib/src/features/assessment/pages/result_page.dart#L201-L457) that opens when the user taps "Ask" on the result page. This mini-chat:
+- Uses **hardcoded suggestion-chip responses** (not the LLM).
+- Has a **read-only text input** — the user cannot type freely.
+- Does **not** call the backend `/api/chat` API at all.
+
+## What Will Change
+
+| Aspect | Before | After |
+|---|---|---|
+| Chat location | Bottom-sheet overlay on result page | Full dedicated page + bottom nav tab |
+| LLM integration | None (hardcoded responses) | Real HTTP calls to Flask `/api/chat` → Qwen 2.5 |
+| User input | Tap suggestion chips only | Free-text input + suggestion chips |
+| Prediction context | Not passed to backend | Automatically passed as `predictionContext` |
+| Navigation | Only reachable via "Ask" button | Bottom nav tab **+** "Ask" button on result page |
+
+## Proposed Changes
+
+### Navigation & Routing
+
+#### [MODIFY] [app_routes.dart](file:///c:/Users/luqma/OneDrive/Desktop/CHI/BASEPROJECT/09_MobileApps/Coral%20Mobile%20-%20Codex/lib/src/core/app_routes.dart)
+- Add `static const chatbot = '/chatbot';` route constant.
+
+#### [MODIFY] [bottom_nav.dart](file:///c:/Users/luqma/OneDrive/Desktop/CHI/BASEPROJECT/09_MobileApps/Coral%20Mobile%20-%20Codex/lib/src/shared/bottom_nav.dart)
+- Add a 4th tab: **"AI Chat"** with `Icons.smart_toy_rounded` / `Icons.smart_toy_outlined`.
+- Map it to `MainTab.chatbot` and `AppRoutes.chatbot`.
+- Add `chatbot` to the `MainTab` enum.
+
+#### [MODIFY] [app.dart](file:///c:/Users/luqma/OneDrive/Desktop/CHI/BASEPROJECT/09_MobileApps/Coral%20Mobile%20-%20Codex/lib/src/app.dart)
+- Import the new `ChatbotPage` widget.
+- Add `AppRoutes.chatbot => const ChatbotPage()` to the route switch.
+
+---
+
+### New Chatbot Feature
+
+#### [NEW] `lib/src/features/chatbot/pages/chatbot_page.dart`
+
+Full-page chat screen with:
+
+1. **App bar** — "ReefGuide AI" title with the coral assistant avatar and a connection status indicator (shows if Ollama/backend is reachable).
+2. **Chat message list** — Scrollable list of user and AI message bubbles (matching the existing app design language from `_ReefGuideDrawer`).
+3. **Context banner** — If a prediction result is available, show a compact banner at the top: *"Discussing: Healthy Coral — 94.2% confidence"*. Tappable to view details.
+4. **Suggestion chips** — Quick-tap suggestions like "Explain the result", "What does this confidence mean?", "What should I do next?".
+5. **Free-text input** — Real `TextField` with send button. Users can type any question.
+6. **Loading indicator** — Typing animation while waiting for the LLM response.
+7. **Bottom navigation** — `CoralBottomNav` with the `chatbot` tab active.
+
+#### [NEW] `lib/src/features/chatbot/services/chat_service.dart`
+
+Service class that:
+- Sends POST requests to `{backendUrl}/api/chat` with `{ message, history, predictionContext }`.
+- Parses the JSON response `{ reply, source }`.
+- Handles errors gracefully (shows "AI is unavailable" if backend/Ollama is down).
+- Uses `SettingsStore` to get the backend URL.
+
+---
+
+### Wiring the "Ask" Button
+
+#### [MODIFY] [result_page.dart](file:///c:/Users/luqma/OneDrive/Desktop/CHI/BASEPROJECT/09_MobileApps/Coral%20Mobile%20-%20Codex/lib/src/features/assessment/pages/result_page.dart)
+- Change the `onAsk` callback: instead of opening the bottom-sheet `_ReefGuideDrawer`, navigate to `AppRoutes.chatbot` and **pass the `PredictionResult`** as a route argument.
+- The existing `_ReefGuideDrawer` class can remain (no deletion needed) but will no longer be called.
+
+---
+
+### Data Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant ResultPage
+    participant ChatbotPage
+    participant FlaskBackend
+    participant OllamaLLM
+
+    User->>ResultPage: Taps "Ask" button
+    ResultPage->>ChatbotPage: Navigator.pushNamed('/chatbot', args: PredictionResult)
+    ChatbotPage->>ChatbotPage: Shows context banner with prediction summary
+    User->>ChatbotPage: Types "Explain the result"
+    ChatbotPage->>FlaskBackend: POST /api/chat {message, history, predictionContext}
+    FlaskBackend->>OllamaLLM: Forward to qwen2.5:3b with system prompt + context
+    OllamaLLM-->>FlaskBackend: LLM response
+    FlaskBackend-->>ChatbotPage: {reply, source: "local"}
+    ChatbotPage-->>User: Displays AI response bubble
+```
+
+## User Review Required
+
+> [!IMPORTANT]
+> The bottom navigation bar will go from **3 tabs** (Home, Analyze, History) to **4 tabs** (Home, Analyze, AI Chat, History). This changes the layout slightly — each tab icon will be a bit closer together. The screenshot below shows the current 3-tab layout.
+
+> [!NOTE]
+> The "Ask" button on the result page will now navigate to the full chatbot page instead of opening a small bottom sheet. The old bottom-sheet code will remain in the file but won't be called, to keep the diff minimal. We can remove it later if you prefer a clean-up.
+
+## Verification Plan
+
+### Manual Verification
+1. Launch the app on the emulator.
+2. Tap the **AI Chat** tab in the bottom nav → verify the chatbot page loads with an empty state / welcome message.
+3. Go through Analyze flow → get a result → tap **Ask** → verify it navigates to the chatbot page with the prediction context banner visible.
+4. Type a message and send → verify a loading indicator appears, then the LLM reply is displayed.
+5. Verify the backend logs show the `/api/chat` request being processed.

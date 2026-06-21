@@ -732,7 +732,7 @@ export default function Hero() {
               letterSpacing: "var(--tracking-display)",
               color: "var(--hero-text-title)",
               margin: 0,
-              maxWidth: "720px",
+              maxWidth: "600px",
               overflowWrap: "anywhere",
               transition: "color 250ms ease",
             }}
@@ -775,7 +775,7 @@ export default function Hero() {
               lineHeight: "var(--leading-body)",
               color: "var(--hero-text-copy)",
               margin: 0,
-              maxWidth: "var(--measure-hero)",
+              maxWidth: "540px",
               transition: "color 250ms ease",
             }}
           >

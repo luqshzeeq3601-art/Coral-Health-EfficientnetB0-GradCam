@@ -1,0 +1,10 @@
+tunnel: 504ee72f-122e-4f81-8fc3-13c3229107e2
+credentials-file: ~/.cloudflared/504ee72f-122e-4f81-8fc3-13c3229107e2.json
+protocol: http2
+
+ingress:
+  - hostname: coralhealth.systems
+    service: http://localhost:5000
+  - hostname: www.coralhealth.systems
+    service: http://localhost:5000
+  - service: http_status:404

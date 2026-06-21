@@ -21,9 +21,9 @@ import seaborn as sns
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-# ==========================================
-# V4 ROBUST CONFIG
-# ==========================================
+# ============================================================
+# TETAPAN KONFIGURASI PROJEK (Project Configuration)
+# ============================================================
 IMG_SIZE = 224
 CLASS_NAMES = ['Healthy', 'Bleached', 'Dead']
 SEEDS = [42, 43, 44, 45, 46]
@@ -57,41 +57,60 @@ DATASET_PATH = r"c:\Users\ZeeqRyz\Desktop\BASEPROJECT\Dataset"
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# ==========================================
-# Dataset Loading Functions
-# ==========================================
+# ============================================================
+# LANGKAH 1: Pengambilan Data (Data Acquisition) 
+# & LANGKAH 3 (A): Pra-pemprosesan Imej (Image Preprocessing)
+# ============================================================
 def collect_file_paths(dataset_path):
+    # Menyimpan laluan fail (file paths), label kelas, dan nama fail secara berasingan
     file_paths, labels, filenames = [], [], []
+    # Kitar semula untuk setiap kelas: 0 = Healthy, 1 = Bleached, 2 = Dead
     for cls_idx, cls_name in enumerate(CLASS_NAMES):
         cls_dir = os.path.join(dataset_path, cls_name)
+        # Sokong nama folder sekiranya ditulis dalam huruf kecil
         if not os.path.exists(cls_dir):
             cls_dir = os.path.join(dataset_path, cls_name.lower())
         if os.path.exists(cls_dir):
+            # Imbas setiap fail di dalam direktori folder kelas tersebut
             for fname in sorted(os.listdir(cls_dir)):
+                # Pastikan hanya imej (format .png, .jpg, .jpeg) yang diproses
                 if not fname.lower().endswith(('.png', '.jpg', '.jpeg')): continue
+                # Masukkan laluan penuh fail imej
                 file_paths.append(os.path.join(cls_dir, fname))
+                # Masukkan label kelas sebagai integer (0, 1, atau 2)
                 labels.append(cls_idx)
+                # Simpan format relatif nama fail, contoh: "Healthy/1.png"
                 filenames.append(f"{cls_name}/{fname}")
     return file_paths, np.array(labels), filenames
 
 def load_images(file_paths):
     images = []
+    # Kitar dan muat naik setiap imej berdasarkan senarai laluan fail
     for path in file_paths:
         try:
+            # Baca imej menggunakan OpenCV (format laluan BGR)
             img = cv2.imread(path)
             if img is not None:
+                # Tukar format warna daripada BGR (OpenCV) ke RGB (Model)
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                # Ubah saiz imej ke format model (224x224)
                 img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
             images.append(img)
         except:
+            # Sekiranya gagal memuat naik imej, simpan sebagai None
             images.append(None)
     return images
 
+# ============================================================
+# LANGKAH 2: Pembahagian Data (Data Splitting - Train/Val/Test)
+# ============================================================
 def split_dataset(dataset_path):
+    # Jika fail pembahagian sebelum ini wujud, muat naik fail tersebut agar pembahagian data sentiasa konsisten
     if os.path.exists(SPLIT_INFO_PATH):
         print(f"Loading existing split from {SPLIT_INFO_PATH}")
         with open(SPLIT_INFO_PATH, 'r') as f:
             split_info = json.load(f)
+        # Fungsi pembantu untuk menukar senarai nama fail kepada laluan penuh dan label integer
         def get_paths(filenames):
             paths, lbls = [], []
             for fname in filenames:
@@ -101,42 +120,61 @@ def split_dataset(dataset_path):
                     cls = fname.split('/')[0]
                     if cls in CLASS_NAMES: lbls.append(CLASS_NAMES.index(cls))
             return paths, np.array(lbls)
+        # Ekstrak data pembahagian Train, Validation, dan Test
         train_paths, train_labels = get_paths(split_info['train_files'])
         val_paths, val_labels = get_paths(split_info['val_files'])
         test_paths, test_labels = get_paths(split_info['test_files'])
         return train_paths, train_labels, val_paths, val_labels, test_paths, test_labels
     else:
+        # Jika tiada fail pembahagian wujud, cipta pembahagian baharu secara rawak
         print("Creating new split...")
         file_paths, labels, _ = collect_file_paths(dataset_path)
         indices = np.arange(len(file_paths))
+        # Pisahkan 80% untuk Train dan 20% untuk data sementara (temp) dengan stratifikasi kelas
         train_idx, temp_idx = train_test_split(indices, test_size=0.2, random_state=SPLIT_SEED, stratify=labels)
         temp_labels = labels[temp_idx]
+        # Pisahkan baki 20% (temp) kepada 10% Validation dan 10% Test dengan stratifikasi kelas
         val_idx, test_idx = train_test_split(temp_idx, test_size=0.5, random_state=SPLIT_SEED, stratify=temp_labels)
+        # Kembalikan senarai fail imej dan label untuk setiap set
         return ([file_paths[i] for i in train_idx], labels[train_idx],
                 [file_paths[i] for i in val_idx],   labels[val_idx],
                 [file_paths[i] for i in test_idx],  labels[test_idx])
 
+# ============================================================
+# LANGKAH 3 (Sambungan): Penapisan Piksel & Augmentasi Generator
+# ============================================================
 def prepare_set(paths, labels):
+    # Muat naik piksel imej sebenar daripada senarai fail
     images = load_images(paths)
     valid_imgs, valid_lbls = [], []
+    # Hanya tapis dan simpan imej yang berjaya dibaca (tidak None)
     for img, label in zip(images, labels):
         if img is not None:
             valid_imgs.append(img)
             valid_lbls.append(label)
+    # Tukar senarai imej kepada NumPy array berformat float32 (decimal)
     X = np.array(valid_imgs, dtype='float32')
+    # Tukar label integer (0, 1, 2) kepada format One-Hot Encoding (contoh: 1 -> [0, 1, 0])
     y = tf.keras.utils.to_categorical(np.array(valid_lbls), num_classes=3)
     return X, y
 
 def get_augmenter():
+    # Menggunakan ImageDataGenerator TensorFlow Keras untuk melakukan transformasi imej rawak
     return tf.keras.preprocessing.image.ImageDataGenerator(
-        rotation_range=20, width_shift_range=0.15, height_shift_range=0.15,
-        horizontal_flip=True, vertical_flip=False, zoom_range=0.15, shear_range=0.05,
-        fill_mode='nearest', brightness_range=[0.8, 1.2]
+        rotation_range=20,          # Putaran imej secara rawak sehingga 20 darjah
+        width_shift_range=0.15,     # Peralihan melintang (kiri/kanan) secara rawak sehingga 15%
+        height_shift_range=0.15,    # Peralihan menegak (atas/bawah) secara rawak sehingga 15%
+        horizontal_flip=True,       # Balikkan imej secara kiri-ke-kanan secara rawak
+        vertical_flip=False,        # Tiada balikkan menegak (kerana kedudukan karang bawah air sentiasa menegak)
+        zoom_range=0.15,            # Zum masuk/keluar secara rawak sebanyak 15%
+        shear_range=0.05,           # Ricihan (distortion) perspektif imej sebanyak 5%
+        fill_mode='nearest',        # Isi kawasan kosong (akibat putaran/peralihan) dengan piksel terdekat
+        brightness_range=[0.8, 1.2] # Ubah kecerahan imej secara rawak antara 80% hingga 120%
     )
 
-# ==========================================
-# Model Building - EfficientNetB0
-# ==========================================
+# ============================================================
+# LANGKAH 5: Pembangunan Seni Bina Model (EfficientNet-B0)
+# ============================================================
 def build_model(weights='imagenet'):
     base_model = EfficientNetB0(include_top=False, weights=weights, input_shape=(IMG_SIZE, IMG_SIZE, 3))
     base_model.trainable = True
@@ -151,9 +189,9 @@ def build_model(weights='imagenet'):
     ])
     return model
 
-# ==========================================
-# Learning Rate Schedule - Cosine Decay
-# ==========================================
+# ============================================================
+# LANGKAH 5: Jadual Kadar Pembelajaran (Cosine Decay Scheduler)
+# ============================================================
 def cosine_decay(epoch):
     initial_lr = INITIAL_LR
     decay_steps = EPOCHS
@@ -162,7 +200,9 @@ def cosine_decay(epoch):
     decayed = (1 - alpha) * cosine_decay_val + alpha
     return initial_lr * decayed
 
-# ==========================================
+# ============================================================
+# LANGKAH 6: Pengoptimuman Stochastic Weight Averaging (SWA)
+# ============================================================
 # SWA Callback
 # ==========================================
 class SWACallback(tf.keras.callbacks.Callback):
@@ -190,9 +230,9 @@ class SWACallback(tf.keras.callbacks.Callback):
             self.model.save_weights(self.swa_path)
             print(f"  [SWA] Final averaged weights saved to {self.swa_path}")
 
-# ==========================================
-# Augmented Mixup Generator
-# ==========================================
+# ============================================================
+# LANGKAH 3 (B): Augmentasi Termaju (Mixup & Color Jitter)
+# ============================================================
 class AugmentedMixupGenerator(tf.keras.utils.Sequence):
     def __init__(self, X, y, batch_size, augment_gen, alpha=0.1, class_weights_dict=None):
         self.gen = augment_gen.flow(X, y, batch_size=batch_size)
@@ -230,11 +270,9 @@ class AugmentedMixupGenerator(tf.keras.utils.Sequence):
         
         return X_mixed, y_mixed
 
-# ==========================================
-# Grad-CAM for EfficientNetB0 (Sequential)
-# Supports: eigen_smooth (PCA denoising) and
-#           aug_smooth (TTA-based smoothing)
-# ==========================================
+# ============================================================
+# LANGKAH 8: Penerangan Model Boleh Tafsir (Grad-CAM XAI)
+# ============================================================
 def make_gradcam_heatmap(img_array, model, layer_name='top_conv', eigen_smooth=False):
     """Generate Grad-CAM heatmap for EfficientNetB0 Sequential model.
     
@@ -385,9 +423,9 @@ def make_gradcam_heatmap_smooth(img_array, model, layer_name='top_conv',
         avg_heatmap = avg_heatmap / np.max(avg_heatmap)
     return avg_heatmap
 
-# ==========================================
-# TTA Prediction (Multi-Scale + Flip)
-# ==========================================
+# ============================================================
+# LANGKAH 7 (Inference): Ramalan Tegar TTA (Test-Time Augmentation)
+# ============================================================
 def predict_with_tta(models, X_test):
     """Robust ensemble prediction using SWA models + Multi-Scale TTA."""
     print("  Running TTA inference (multi-scale + flip)...")
@@ -421,9 +459,10 @@ def predict_with_tta(models, X_test):
     
     return np.array(all_ensemble_preds)
 
-# ==========================================
-# Main Training Function
-# ==========================================
+# ============================================================
+# ALIRAN UTAMA: Proses Latihan, Oversampling, Evaluasi & Output
+# (Main Training, Step 4, 5, 6, 7, 8 Orchestration)
+# ============================================================
 def train_model():
     print("=" * 55)
     print("V4 ROBUST - EfficientNetB0 Training (SWA + TTA)")
@@ -433,7 +472,9 @@ def train_model():
     train_paths, train_labels, val_paths, val_labels, test_paths, test_labels = split_dataset(DATASET_PATH)
 
     def prepare_training_data(paths, labels, seed):
+        # Membina format nama fail relatif seperti "Healthy/1.png" untuk pemadanan dengan senarai imej sukar
         train_filenames = [f"{p.replace(chr(92), '/').split('/')[-2]}/{p.replace(chr(92), '/').split('/')[-1]}" for p in paths]
+        # Mengumpulkan semua nama fail imej sukar ke dalam struktur data Set untuk carian pantas
         hard_filenames = set()
         for cls, files in HARD_EXAMPLES.items():
             for f in files: hard_filenames.add(f"{cls}/{f}")
@@ -442,12 +483,14 @@ def train_model():
         base_imgs, base_lbls = [], []
         hard_imgs, hard_lbls = [], []
         
+        # Proses setiap imej asal di dalam senarai data latihan
         for img, label, fname in zip(images, labels, train_filenames):
             if img is None: continue
             base_imgs.append(img)
             base_lbls.append(label)
+            # BAHAGIAN A: Hard-Example Oversampling (Penyalinan Imej Sukar)
             if fname in hard_filenames:
-                # Dead class gets extra oversampling (30x vs 20x)
+                # Kelas minoriti Dead mendapat gandaan lebih tinggi (30x) berbanding kelas lain (20x)
                 cls_name = fname.split('/')[0]
                 factor = 30 if cls_name == 'Dead' else OVERSAMPLE_FACTOR
                 for _ in range(factor):
@@ -457,9 +500,11 @@ def train_model():
         print(f"  Base training images: {len(base_imgs)}")
         print(f"  Hard images (oversampled): {len(hard_imgs)}")
         
+        # Menggabungkan imej asal dan imej gandaan (oversampled) ke dalam array tunggal
         X = np.array(base_imgs + hard_imgs, dtype='float32')
         y = np.array(base_lbls + hard_lbls)
         y = tf.keras.utils.to_categorical(y, num_classes=3)
+        # Kocok (shuffle) semula dataset secara rawak mengikut seed latihan semasa
         X, y = shuffle(X, y, random_state=seed)
         print(f"  Total training samples: {len(X)}")
         return X, y
@@ -500,11 +545,12 @@ def train_model():
         X_train, y_train = prepare_training_data(train_paths, train_labels, seed)
 
         y_integers = np.argmax(y_train, axis=1)
+        # BAHAGIAN B: Class Weighting (Pengiraan berat kelas seimbang bagi mengatasi ketidakseimbangan dataset)
         class_weights = class_weight.compute_class_weight(
             class_weight='balanced', classes=np.unique(y_integers), y=y_integers
         )
         class_weights_dict = dict(enumerate(class_weights))
-        # Boost Dead class weight to improve precision
+        # Tingkatkan pemberat ralat kelas Dead (Karang Mati) sebanyak 1.3 kali ganda (30% lebih tinggi) untuk ketepatan ekstra
         class_weights_dict[2] = class_weights_dict[2] * 1.3
         print(f"  Class Weights: {class_weights_dict}")
         

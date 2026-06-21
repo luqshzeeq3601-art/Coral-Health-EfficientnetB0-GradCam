@@ -8,36 +8,44 @@ const BENEFITS = [
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <path
-          d="M8 1L10.06 5.17L14.66 5.84L11.33 9.08L12.12 13.66L8 11.5L3.88 13.66L4.67 9.08L1.34 5.84L5.94 5.17L8 1Z"
+          d="M2.5 3.5H7.5L13.5 9.5L9.5 13.5L3.5 7.5V3.5H2.5Z"
           stroke="#3cab57"
           strokeWidth="1.5"
           strokeLinejoin="round"
         />
+        <circle cx="5.5" cy="5.5" r="0.9" fill="#3cab57" />
       </svg>
     ),
-    label: "Standardized Assessment",
+    label: "Coral Health Classification",
     color: "#3cab57",
     bg: "var(--tint-green)",
   },
   {
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <circle cx="8" cy="8" r="6" stroke="var(--brand-primary)" strokeWidth="1.5" />
-        <path d="M5.5 8.5L7 10L10.5 6" stroke="var(--brand-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M1.8 8C3.1 5.6 5.2 4.2 8 4.2C10.8 4.2 12.9 5.6 14.2 8C12.9 10.4 10.8 11.8 8 11.8C5.2 11.8 3.1 10.4 1.8 8Z"
+          stroke="var(--brand-primary)"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+        <circle cx="8" cy="8" r="2" stroke="var(--brand-primary)" strokeWidth="1.5" />
       </svg>
     ),
-    label: "Observer-Bias Free",
+    label: "Explainable AI with Grad-CAM",
     color: "var(--text-brand)",
     bg: "var(--brand-light)",
   },
   {
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <path d="M3 8L8 3L13 8" stroke="var(--brand-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M8 3V13" stroke="var(--brand-primary)" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M3 13V9" stroke="var(--brand-primary)" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M8 13V5" stroke="var(--brand-primary)" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M13 13V3" stroke="var(--brand-primary)" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M2 13H14" stroke="var(--brand-primary)" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
-    label: "Edge Deployment Ready",
+    label: "Performance-Based Assessment",
     color: "var(--text-brand)",
     bg: "var(--brand-light)",
   },
@@ -142,9 +150,9 @@ export default function Mission({ sectionId = "mission" }: { sectionId?: string 
                   overflowWrap: "anywhere",
                 }}
               >
-                Automating Reef Monitoring{" "}
+                Automating Coral Reef Health Assessment{" "}
                 <span style={{ display: "block", color: "var(--text-brand)" }}>
-                  for Marine Biologists
+                  with Explainable AI
                 </span>
               </h2>
 
@@ -158,7 +166,7 @@ export default function Mission({ sectionId = "mission" }: { sectionId?: string 
                   margin: 0,
                   maxWidth: "var(--measure-prose)",
                 }}
-                text={"Manual underwater surveys are time-intensive and susceptible to observer\nbias. This system standardizes reef health analytics by utilizing optimized\ndeep-learning pipelines to process visual data directly from edge\ndeployment environments and diver cameras."}
+                text={"This system uses CNN-based image analysis to classify coral reef images as\nHealthy, Bleached, or Dead. It also provides confidence scores and Grad-CAM\nvisual explanations, helping users understand predictions and support faster\nreef monitoring decisions."}
               />
             </div>
 

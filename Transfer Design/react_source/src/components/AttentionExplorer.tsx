@@ -609,7 +609,7 @@ export default function AttentionExplorer({ dark: propDark, sectionId = "gradcam
                   left: "16px",
                   right: "16px",
                   height: "2px",
-                  background: dark ? "rgba(56, 189, 248, 0.15)" : "rgba(0, 87, 230, 0.15)",
+                  background: dark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.15)",
                   zIndex: 1,
                 }}
               />
@@ -623,8 +623,8 @@ export default function AttentionExplorer({ dark: propDark, sectionId = "gradcam
                   left: "16px",
                   width: `calc((${step} / 3) * (100% - 32px))`,
                   height: "2px",
-                  background: dark ? "#38bdf8" : "#0057e6",
-                  boxShadow: dark ? "0 0 12px rgba(56, 189, 248, 0.8)" : "0 0 8px rgba(0, 87, 230, 0.4)",
+                  background: dark ? "#ffffff" : "#1e1c1a",
+                  boxShadow: dark ? "0 0 12px rgba(255, 255, 255, 0.8)" : "0 0 8px rgba(0, 0, 0, 0.4)",
                   zIndex: 2,
                   transition: "width 400ms cubic-bezier(0.22, 1, 0.36, 1)",
                 }}
@@ -643,7 +643,7 @@ export default function AttentionExplorer({ dark: propDark, sectionId = "gradcam
                   const isActive = i === step;
                   const isDone = i < step;
 
-                  const cyanColor = dark ? "#38bdf8" : "#0057e6";
+                  const cyanColor = dark ? "#ffffff" : "var(--text-primary)";
                   const faintBorder = dark ? "rgba(255,255,255,0.12)" : "var(--border-base)";
 
                   const pillBorder = isActive
@@ -657,7 +657,7 @@ export default function AttentionExplorer({ dark: propDark, sectionId = "gradcam
                     : (dark ? "#121620" : "#ffffff");
 
                   const pillShadow = isActive
-                    ? (dark ? "0 0 16px rgba(56, 189, 248, 0.4)" : "0 0 12px rgba(0, 87, 230, 0.3)")
+                    ? (dark ? "0 0 16px rgba(255, 255, 255, 0.4)" : "0 0 12px rgba(0, 0, 0, 0.3)")
                     : "none";
 
                   const nodeTextColor = isActive
@@ -738,7 +738,7 @@ export default function AttentionExplorer({ dark: propDark, sectionId = "gradcam
                             color: isActive
                               ? cyanColor
                               : (dark ? "#607386" : "#64748b"),
-                            textShadow: isActive && dark ? `0 0 8px rgba(56,189,248,0.4)` : "none",
+                            textShadow: isActive && dark ? `0 0 8px rgba(255, 255, 255, 0.4)` : "none",
                             transition: "all 300ms ease",
                           }}
                         >

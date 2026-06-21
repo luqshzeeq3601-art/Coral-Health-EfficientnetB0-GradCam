@@ -12,6 +12,7 @@ import json
 import cv2
 import base64
 from typing import List
+import threading
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -178,6 +179,13 @@ def numpy_to_base64(img_array):
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
+@app.after_request
+def add_cors_headers(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
 # ============================================================
 # Configuration
 # ============================================================
@@ -215,6 +223,9 @@ ENSEMBLE_WEIGHTS = None
 TEMPERATURE = 1.0
 BASE_MODEL = None
 BASE_MODEL_INFO = 'EfficientNetB0 Baseline (frozen backbone)'
+MODEL_LOAD_EVENT = threading.Event()
+MODEL_LOAD_ERROR = None
+MODEL_LOAD_THREAD = None
 
 
 def softmax(logits):
@@ -345,33 +356,53 @@ def check_metrics_consistency():
 
 def load_models():
     """Load ensemble models at startup."""
-    global MODELS, LOADED_FOLDS
+    global MODELS, LOADED_FOLDS, MODEL_LOAD_ERROR
+    MODEL_LOAD_EVENT.clear()
+    MODEL_LOAD_ERROR = None
     MODELS = []
     LOADED_FOLDS = []
-    print("\n  Loading V4 Robust ensemble models...")
-    for fold in FOLDS:
-        # Load V4 Robust Seeds
-        model_path = os.path.join(MODEL_DIR, f"efficientnetb0_v4robust_seed{fold}_swa.h5")
+
+    try:
+        print("\n  Loading V4 Robust ensemble models...")
+        for fold in FOLDS:
+            # Load V4 Robust Seeds
+            model_path = os.path.join(MODEL_DIR, f"efficientnetb0_v4robust_seed{fold}_swa.h5")
 
 
-        if os.path.exists(model_path):
-            try:
-                model = build_model()
-                model.load_weights(model_path)
-                # Compile just to avoidwarnings, though we only predict
-                model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-                MODELS.append(model)
-                LOADED_FOLDS.append(fold)
-                print(f"  [OK] Loaded {os.path.basename(model_path)}")
-            except Exception as e:
-                print(f"  [FAIL] {model_path}: {e}")
-        else:
-            print(f"  [SKIP] Model for fold {fold} not found at {model_path}")
-    print(f"  Total models loaded: {len(MODELS)}/{len(FOLDS)}")
+            if os.path.exists(model_path):
+                try:
+                    model = build_model()
+                    model.load_weights(model_path)
+                    # Compile just to avoidwarnings, though we only predict
+                    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+                    MODELS.append(model)
+                    LOADED_FOLDS.append(fold)
+                    print(f"  [OK] Loaded {os.path.basename(model_path)}")
+                except Exception as e:
+                    print(f"  [FAIL] {model_path}: {e}")
+            else:
+                print(f"  [SKIP] Model for fold {fold} not found at {model_path}")
+        print(f"  Total models loaded: {len(MODELS)}/{len(FOLDS)}")
 
-    load_calibration_artifacts()
-    check_metrics_consistency()
-    load_base_model()
+        load_calibration_artifacts()
+        check_metrics_consistency()
+        load_base_model()
+    except Exception as e:
+        MODEL_LOAD_ERROR = str(e)
+        print(f"  [FAIL] Unexpected model loading error: {e}")
+    finally:
+        MODEL_LOAD_EVENT.set()
+
+
+def start_model_loading():
+    """Start model loading in a background thread once the server is booting."""
+    global MODEL_LOAD_THREAD
+    if MODEL_LOAD_THREAD is not None and MODEL_LOAD_THREAD.is_alive():
+        return MODEL_LOAD_THREAD
+
+    MODEL_LOAD_THREAD = threading.Thread(target=load_models, daemon=True)
+    MODEL_LOAD_THREAD.start()
+    return MODEL_LOAD_THREAD
 
 
 def load_base_model():
@@ -632,14 +663,25 @@ def get_deployment_audit_metrics():
 # Built React SPA (Coral AI Landing Page) lives here; see frontend/ dir.
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend')
 
+def _send_index():
+    """Serve the SPA shell with no-cache so browsers always pick up the latest
+    hashed asset bundle after a rebuild. The content-hashed files under
+    /assets/ stay cacheable; only this entry document must never be stale."""
+    resp = send_from_directory(FRONTEND_DIR, 'index.html')
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
+
+
 @app.route('/')
 def home():
     # New production home = the built React landing page.
-    return send_from_directory(FRONTEND_DIR, 'index.html')
+    return _send_index()
 
 @app.route('/coral_health')
 def coral_health():
-    return send_from_directory(FRONTEND_DIR, 'index.html')
+    return _send_index()
 
 @app.route('/design9')
 def design9_legacy():
@@ -677,17 +719,20 @@ def frontend_assets(filename):
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({
-        'status': 'running',
+        'status': 'running' if MODEL_LOAD_EVENT.is_set() else 'loading',
         'models_loaded': len(MODELS),
         'folds_requested': FOLDS,
         'folds_loaded': LOADED_FOLDS,
         'temperature': TEMPERATURE,
-        'has_ensemble_weights': ENSEMBLE_WEIGHTS is not None
+        'has_ensemble_weights': ENSEMBLE_WEIGHTS is not None,
+        'model_load_error': MODEL_LOAD_ERROR,
     })
 
-CHAT_SYSTEM_PROMPT = """You are ReefGuide, the assistant for a coral health web app.
+CHAT_SYSTEM_PROMPT = """You are Coral AI, the assistant for a coral health web app.
 Help users understand image upload, CNN predictions, confidence, class probabilities, Grad-CAM, and coral health terms.
-Keep answers concise, practical, and friendly. Do not claim the model is a final field diagnosis.
+CRITICAL INSTRUCTION: You MUST keep all your answers extremely concise, structured, and compact.
+ALWAYS use Markdown bullet points (`- `) to structure your explanations or data. Do NOT output long paragraphs or walls of text.
+Do not claim the model is a final field diagnosis.
 For important conservation or research decisions, recommend manual review by a coral expert."""
 
 CHAT_FALLBACK_RESPONSES = [
@@ -801,44 +846,40 @@ def fallback_chat_response(message, prediction_context=None):
     )
 
 
-def generate_gemini_reply(message, history, prediction_context):
-    from google import genai
-    from google.genai import types
+def generate_local_reply(message, history, prediction_context):
+    import urllib.request
+    import json
 
-    api_key = os.environ.get('GEMINI_API_KEY')
-    if not api_key:
-        raise RuntimeError('GEMINI_API_KEY is not configured')
-
-    model = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash')
-    client = genai.Client(api_key=api_key)
-    history_text = "\n".join(
-        f"{item['role'].title()}: {item['content']}"
-        for item in history
-    ) or "No prior chat messages."
-
-    prompt = (
+    system_prompt = (
         f"{CHAT_SYSTEM_PROMPT}\n\n"
-        f"Latest prediction context:\n{format_prediction_context(prediction_context)}\n\n"
-        f"Recent chat:\n{history_text}\n\n"
-        f"User question:\n{message}\n\n"
-        "Answer in 1-3 short paragraphs."
+        "IMPORTANT: You have access to the user's latest coral prediction result below. "
+        "If the user asks to explain the result, use this specific context to provide a detailed explanation of why the coral might be in this state, referring to the probabilities and confidence.\n\n"
+        f"Prediction context:\n{format_prediction_context(prediction_context)}"
     )
 
-    config = types.GenerateContentConfig(safety_settings=[
-        types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_ONLY_HIGH"),
-        types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_ONLY_HIGH"),
-        types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_ONLY_HIGH"),
-        types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_ONLY_HIGH")
-    ])
-    response = client.models.generate_content(  # noqa # type: ignore
-        model=model,
-        contents=prompt,
-        config=config
+    messages = [{"role": "system", "content": system_prompt}]
+    for item in history:
+        messages.append({"role": item["role"], "content": item["content"]})
+    messages.append({"role": "user", "content": message})
+
+    payload = {
+        "model": "qwen2.5:3b",
+        "messages": messages,
+        "stream": False
+    }
+
+    req = urllib.request.Request(
+        "http://localhost:11434/api/chat",
+        data=json.dumps(payload).encode('utf-8'),
+        headers={'Content-Type': 'application/json'}
     )
-    reply = trim_chat_text(getattr(response, 'text', ''), 2000)
-    if not reply:
-        raise RuntimeError('Gemini returned an empty response')
-    return reply
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            res_data = json.loads(response.read().decode('utf-8'))
+            return res_data['message']['content']
+    except Exception as e:
+        raise RuntimeError(f"Ollama local request failed: {e}")
 
 
 @app.route('/api/chat', methods=['POST'])
@@ -856,14 +897,13 @@ def chat():
     history = compact_chat_history(data.get('history'))
     prediction_context = sanitize_prediction_context(data.get('predictionContext'))
 
-    if os.environ.get('GEMINI_API_KEY'):
-        try:
-            return jsonify({
-                'reply': generate_gemini_reply(message, history, prediction_context),
-                'source': 'gemini'
-            })
-        except Exception as e:
-            print(f"  [WARN] Gemini chat fallback used: {e}")
+    try:
+        return jsonify({
+            'reply': generate_local_reply(message, history, prediction_context),
+            'source': 'local'
+        })
+    except Exception as e:
+        print(f"  [WARN] Local chat failed, using fallback: {e}")
 
     return jsonify({
         'reply': fallback_chat_response(message, prediction_context),
@@ -1204,6 +1244,8 @@ def predict():
     if file.filename == '':
         return jsonify({'error': 'No file selected'}), 400
 
+    import time
+    start_req_time = time.time()
     try:
         debug_mode = request.args.get('debug') == '1' or True # Force debug for now
 
@@ -1222,6 +1264,9 @@ def predict():
         img_resized = cv2.resize(img_rgb, (IMG_SIZE, IMG_SIZE))  # uint8, 224x224, RGB
 
         # ── FEAT-01: guard both paths ──
+        if not MODEL_LOAD_EVENT.is_set():
+            if not MODEL_LOAD_EVENT.wait(timeout=300):
+                return jsonify({'error': 'Model loading is still in progress. Try again shortly.'}), 503
         if use_ensemble and len(MODELS) == 0:
             return jsonify({'error': 'No models loaded. Check server logs.'}), 500
         if not use_ensemble and BASE_MODEL is None:
@@ -1345,7 +1390,9 @@ def predict():
                 gradcam_data = {'error': str(e)}
 
         # Original image as base64
-        original_b64 = numpy_to_base64(img_for_gradcam)
+        original_b64 = None
+        if request.form.get('client') != 'mobile':
+            original_b64 = numpy_to_base64(img_for_gradcam)
 
         # Status Info - EXACTLY MATCHING FRONTEND REQUIREMENTS
             # Status Info - EXACTLY MATCHING FRONTEND REQUIREMENTS
@@ -1415,9 +1462,13 @@ def predict():
         if debug_mode:
             result['debug_preprocessing'] = debug_preprocessing
 
+        print(f"  [INFO] /api/predict succeeded in {time.time() - start_req_time:.4f} seconds")
         return jsonify(result)
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"  [ERROR] /api/predict failed after {time.time() - start_req_time:.4f} seconds: {e}")
         return jsonify({'error': str(e)}), 500
 
 # ============================================================
@@ -1672,12 +1723,13 @@ def run_simulation_inference():
 # Main Entry Point
 # ============================================================
 if __name__ == '__main__':
-    load_models()
     print("\n=======================================================")
     print("   Coral Health AI - Web Application Server")
     print("=======================================================")
     print(f"   Server starting at http://localhost:5000")
-    # debug=False / use_reloader=False: the reloader otherwise spawns a child
-    # process that re-runs load_models(), loading the whole ensemble TWICE at
-    # startup. threaded=True lets the browser fetch assets concurrently.
-    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)
+    start_model_loading()
+    # Use waitress WSGI server to serve the application robustly on Windows.
+    # This avoids socket reset (RST) and premature connection closed exceptions on loopback.
+    from waitress import serve
+    serve(app, host='0.0.0.0', port=5000, threads=6,
+          channel_timeout=300, recv_bytes=131072, send_bytes=131072)

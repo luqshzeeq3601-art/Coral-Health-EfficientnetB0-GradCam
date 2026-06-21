@@ -27,8 +27,8 @@ export function ScanningGrid() {
           left: 0,
           right: 0,
           height: "150%",
-          background: "linear-gradient(to bottom, transparent, rgba(56, 189, 248, 0.1) 80%, rgba(56, 189, 248, 0.6) 95%, rgba(56, 189, 248, 0.8) 100%)",
-          boxShadow: "0 4px 20px rgba(56, 189, 248, 0.3)",
+          background: "linear-gradient(to bottom, transparent, rgba(var(--scan-color-rgb), 0.1) 80%, rgba(var(--scan-color-rgb), 0.6) 95%, rgba(var(--scan-color-rgb), 0.8) 100%)",
+          boxShadow: "0 4px 20px rgba(var(--scan-color-rgb), 0.3)",
         }}
       />
       {/* Grid overlay */}
@@ -37,8 +37,8 @@ export function ScanningGrid() {
           position: "absolute",
           inset: 0,
           backgroundImage: `
-            linear-gradient(to right, rgba(56, 189, 248, 0.1) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(56, 189, 248, 0.1) 1px, transparent 1px)
+            linear-gradient(to right, rgba(var(--scan-color-rgb), 0.1) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(var(--scan-color-rgb), 0.1) 1px, transparent 1px)
           `,
           backgroundSize: "20px 20px",
           opacity: 0.5,

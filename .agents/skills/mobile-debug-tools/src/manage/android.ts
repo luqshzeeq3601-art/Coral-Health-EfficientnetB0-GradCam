@@ -1,0 +1,216 @@
+import { promises as fs } from 'fs'
+import { spawn } from 'child_process'
+import path from 'path'
+import { existsSync } from 'fs'
+import { execAdb, spawnAdb, getAndroidDeviceMetadata, getDeviceInfo, findApk, prepareGradle } from '../utils/android/utils.js'
+import { execAdbWithDiagnostics } from '../utils/diagnostics.js'
+import { detectJavaHome } from '../utils/java.js'
+import { AndroidObserve } from '../observe/android.js'
+import { InstallAppResponse, StartAppResponse, TerminateAppResponse, RestartAppResponse, ResetAppDataResponse } from '../types.js'
+
+type BuildEnv = Record<string, string | undefined>
+
+export interface AndroidBuildOptions {
+  variant?: string
+  env?: BuildEnv
+}
+
+export class AndroidManage {
+  private isTestOnlyInstallFailure(output: string | undefined): boolean {
+    return typeof output === 'string' && output.includes('INSTALL_FAILED_TEST_ONLY')
+  }
+
+  async build(projectPath: string, optionsOrVariant?: string | AndroidBuildOptions): Promise<{ artifactPath: string, output?: string } | { error: string }> {
+    const options: AndroidBuildOptions = typeof optionsOrVariant === 'string' ? { variant: optionsOrVariant } : (optionsOrVariant || {})
+    try {
+      const env = {
+        ...(options.env || {}),
+        ...(options.variant ? { MCP_GRADLE_TASK: options.variant } : {})
+      }
+      // Always use the shared prepareGradle utility for consistent env/setup
+      const { execCmd, gradleArgs, spawnOpts } = await prepareGradle(projectPath, env)
+      await new Promise<void>((resolve, reject) => {
+        const proc = spawn(execCmd, gradleArgs, spawnOpts)
+        let stderr = ''
+        proc.stderr?.on('data', d => stderr += d.toString())
+        proc.on('close', code => {
+          if (code === 0) resolve()
+          else reject(new Error(stderr || `Gradle failed with code ${code}`))
+        })
+        proc.on('error', err => reject(err))
+      })
+    
+      const apk = await findApk(projectPath)
+      if (!apk) return { error: 'Could not find APK after build' }
+      return { artifactPath: apk }
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : String(e) }
+    }
+  }
+
+  async installApp(apkPath: string, deviceId?: string): Promise<InstallAppResponse> {
+    const metadata = await getAndroidDeviceMetadata('', deviceId)
+    const deviceInfo = getDeviceInfo(deviceId || 'default', metadata)
+
+    let apkToInstall: string = apkPath
+    try {
+        const stat = await fs.stat(apkPath).catch(() => null)
+        if (stat && stat.isDirectory()) {
+          const detectedJavaHome = await detectJavaHome().catch(() => undefined)
+          const env = { ...process.env }
+          if (detectedJavaHome) {
+            if (env.JAVA_HOME !== detectedJavaHome) {
+              env.JAVA_HOME = detectedJavaHome
+            env.PATH = `${path.join(detectedJavaHome, 'bin')}${path.delimiter}${env.PATH || ''}`
+            console.debug('[android-run] Overriding JAVA_HOME with detected path:', detectedJavaHome)
+          }
+        }
+        try { delete env.SHELL } catch {}
+
+        const gradleArgs = ['assembleDebug']
+        if (detectedJavaHome) {
+          gradleArgs.push(`-Dorg.gradle.java.home=${detectedJavaHome}`)
+          gradleArgs.push('--no-daemon')
+          env.GRADLE_JAVA_HOME = detectedJavaHome
+        }
+
+        const wrapperPath = path.join(apkPath, 'gradlew')
+        const useWrapper = existsSync(wrapperPath)
+        const execCmd = useWrapper ? wrapperPath : 'gradle'
+        const spawnOpts: any = { cwd: apkPath, env }
+        if (useWrapper) {
+          await fs.chmod(wrapperPath, 0o755).catch(() => {})
+          // Run wrapper directly to avoid shell splitting of args
+          spawnOpts.shell = false
+        } else {
+          // Execute gradle directly without a shell so paths with spaces are preserved
+          spawnOpts.shell = false
+        }
+
+        const proc = spawn(execCmd, gradleArgs, spawnOpts)
+        let stderr = ''
+        await new Promise<void>((resolve, reject) => {
+          proc.stderr?.on('data', d => stderr += d.toString())
+          proc.on('close', code => {
+            if (code === 0) resolve()
+            else reject(new Error(stderr || `Gradle build failed with code ${code}`))
+          })
+          proc.on('error', err => reject(err))
+        })
+
+        const built = await findApk(apkPath)
+        if (!built) throw new Error('Could not locate built APK after running Gradle')
+        apkToInstall = built
+      }
+
+      try {
+        const res = await spawnAdb(['install', '-r', apkToInstall], deviceId)
+        if (res.code === 0) {
+          return { device: deviceInfo, installed: true, output: res.stdout }
+        }
+
+        const installOutput = `${res.stdout}\n${res.stderr}`.trim()
+        if (this.isTestOnlyInstallFailure(installOutput)) {
+          const retryRes = await spawnAdb(['install', '-r', '-t', apkToInstall], deviceId)
+          if (retryRes.code === 0) {
+            return { device: deviceInfo, installed: true, output: retryRes.stdout }
+          }
+        }
+      } catch (e) {
+        console.debug('[android-run] adb install failed, attempting push+pm fallback:', e instanceof Error ? e.message : String(e))
+      }
+
+      const basename = path.basename(apkToInstall)
+      const remotePath = `/data/local/tmp/${basename}`
+      await execAdb(['push', apkToInstall, remotePath], deviceId)
+      let finalPmRes = await spawnAdb(['shell', 'pm', 'install', '-r', remotePath], deviceId)
+      try {
+        if (finalPmRes.code === 0) {
+          return { device: deviceInfo, installed: true, output: finalPmRes.stdout }
+        }
+        if (this.isTestOnlyInstallFailure(`${finalPmRes.stdout}\n${finalPmRes.stderr}`)) {
+          finalPmRes = await spawnAdb(['shell', 'pm', 'install', '-r', '-t', remotePath], deviceId)
+          if (finalPmRes.code === 0) {
+            return { device: deviceInfo, installed: true, output: finalPmRes.stdout }
+          }
+        }
+        throw new Error(finalPmRes.stderr || finalPmRes.stdout || 'pm install failed')
+      } finally {
+        try { await execAdb(['shell', 'rm', remotePath], deviceId) } catch {}
+      }
+    } catch (e) {
+      // gather diagnostics for attempted adb operations
+      const basename = path.basename(apkToInstall)
+      const remotePath = `/data/local/tmp/${basename}`
+      const installDiag = execAdbWithDiagnostics(['install', '-r', apkToInstall], deviceId)
+      const pushDiag = execAdbWithDiagnostics(['push', apkToInstall, remotePath], deviceId)
+      const pmDiag = execAdbWithDiagnostics(['shell', 'pm', 'install', '-r', remotePath], deviceId)
+      return { device: deviceInfo, installed: false, error: e instanceof Error ? e.message : String(e), diagnostics: { installDiag, pushDiag, pmDiag } }
+    }
+  }
+
+  async startApp(appId: string, deviceId?: string): Promise<StartAppResponse> {
+    const metadata = await getAndroidDeviceMetadata(appId, deviceId)
+    const deviceInfo = getDeviceInfo(deviceId || 'default', metadata)
+    try {
+      const output = await execAdb(['shell', 'monkey', '-p', appId, '-c', 'android.intent.category.LAUNCHER', '1'], deviceId)
+      const current = await new AndroidObserve().getCurrentScreen(deviceId).catch(() => null)
+      return {
+        device: deviceInfo,
+        appStarted: true,
+        launchTimeMs: 1000,
+        output,
+        observedApp: {
+          appId,
+          package: current?.package ?? null,
+          activity: current?.activity ?? null,
+          screen: current?.shortActivity ?? current?.activity ?? null,
+          matchedTarget: current ? current.package === appId : null
+        }
+      }
+    } catch (e: unknown) {
+      const diag = execAdbWithDiagnostics(['shell', 'monkey', '-p', appId, '-c', 'android.intent.category.LAUNCHER', '1'], deviceId)
+      return { device: deviceInfo, appStarted: false, launchTimeMs: 0, error: e instanceof Error ? e.message : String(e), diagnostics: diag }
+    }
+  }
+
+  async terminateApp(appId: string, deviceId?: string): Promise<TerminateAppResponse> {
+    const metadata = await getAndroidDeviceMetadata(appId, deviceId)
+    const deviceInfo = getDeviceInfo(deviceId || 'default', metadata)
+    try {
+      await execAdb(['shell', 'am', 'force-stop', appId], deviceId)
+      return { device: deviceInfo, appTerminated: true }
+    } catch (e: unknown) {
+      const diag = execAdbWithDiagnostics(['shell', 'am', 'force-stop', appId], deviceId)
+      return { device: deviceInfo, appTerminated: false, error: e instanceof Error ? e.message : String(e), diagnostics: diag }
+    }
+  }
+
+  async restartApp(appId: string, deviceId?: string): Promise<RestartAppResponse> {
+    const terminateResult = await this.terminateApp(appId, deviceId)
+    const startResult = await this.startApp(appId, deviceId)
+    return {
+      device: startResult.device,
+      appRestarted: startResult.appStarted,
+      launchTimeMs: startResult.launchTimeMs,
+      output: startResult.output,
+      observedApp: startResult.observedApp,
+      terminatedBeforeRestart: terminateResult.appTerminated,
+      ...(terminateResult.error ? { terminateError: terminateResult.error } : {}),
+      ...(startResult.error ? { error: startResult.error } : {}),
+      ...(startResult.diagnostics ? { diagnostics: startResult.diagnostics } : {})
+    }
+  }
+
+  async resetAppData(appId: string, deviceId?: string): Promise<ResetAppDataResponse> {
+    const metadata = await getAndroidDeviceMetadata(appId, deviceId)
+    const deviceInfo = getDeviceInfo(deviceId || 'default', metadata)
+    try {
+      const output = await execAdb(['shell', 'pm', 'clear', appId], deviceId)
+      return { device: deviceInfo, dataCleared: output === 'Success' }
+    } catch (e: unknown) {
+      const diag = execAdbWithDiagnostics(['shell', 'pm', 'clear', appId], deviceId)
+      return { device: deviceInfo, dataCleared: false, error: e instanceof Error ? e.message : String(e), diagnostics: diag }
+    }
+  }
+}

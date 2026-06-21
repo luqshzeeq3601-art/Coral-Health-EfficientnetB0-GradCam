@@ -65,75 +65,7 @@ function DeferredSection({
   );
 }
 
-function ChatBotOnDemand({ dark }: { dark: boolean }) {
-  const [requested, setRequested] = useState(false);
 
-  if (requested) {
-    return (
-      <Suspense fallback={null}>
-        <ChatBot dark={dark} initialOpen />
-      </Suspense>
-    );
-  }
-
-  return (
-    <div
-      id="chatbot-launcher"
-      style={{
-        position: "fixed",
-        bottom: "24px",
-        right: "24px",
-        zIndex: 200,
-      }}
-    >
-      <button
-        type="button"
-        aria-label="Open Coral Assistant chatbot"
-        aria-expanded={false}
-        onClick={() => setRequested(true)}
-        className="focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2"
-        style={{
-          width: "56px",
-          height: "56px",
-          borderRadius: "50%",
-          background: dark ? "var(--bg-card)" : "#ffffff",
-          border: dark ? "1px solid var(--border-base)" : "1px solid rgba(0, 87, 230, 0.15)",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: dark
-            ? "0 8px 24px -4px rgba(56, 189, 248, 0.25), 0 2px 8px -2px rgba(0,0,0,0.5)"
-            : "0 10px 30px -10px rgba(0, 87, 230, 0.25), 0 2px 8px -2px rgba(0, 87, 230, 0.08)",
-          transition: "border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "translateY(-1px)";
-          e.currentTarget.style.borderColor = dark ? "var(--brand-cyan)" : "rgba(0, 87, 230, 0.35)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "translateY(0)";
-          e.currentTarget.style.borderColor = dark ? "var(--border-base)" : "rgba(0, 87, 230, 0.15)";
-        }}
-      >
-        <img
-          src="/corallogo.png"
-          alt=""
-          aria-hidden="true"
-          width={36}
-          height={36}
-          decoding="async"
-          style={{
-            width: "36px",
-            height: "36px",
-            borderRadius: "50%",
-            objectFit: "cover",
-          }}
-        />
-      </button>
-    </div>
-  );
-}
 
 export default function App() {
   const { dark, toggle } = useDarkMode();
@@ -164,7 +96,6 @@ export default function App() {
         </DeferredSection>
       </main>
       <Footer />
-      <ChatBotOnDemand dark={dark} />
     </div>
   );
 }

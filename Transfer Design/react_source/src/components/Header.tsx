@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import coralLogo from "../assets/corallogo.png";
 
 interface HeaderProps {
   dark: boolean;
@@ -166,7 +165,7 @@ export default function Header({ dark, toggle }: HeaderProps) {
             aria-label="Coral Health AI — home"
           >
             <span className="flex items-center justify-center w-8 h-8 rounded-[8px] overflow-hidden" aria-hidden="true">
-              <img src={coralLogo} alt="" width={32} height={32} decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <img src="/corallogo.png" alt="" width={32} height={32} decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </span>
             <span
               className="text-base font-semibold tracking-tight transition-colors duration-300"

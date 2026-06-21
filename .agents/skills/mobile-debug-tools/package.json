@@ -1,0 +1,43 @@
+{
+  "name": "mobile-debug-mcp",
+  "version": "0.30.1",
+  "description": "MCP server for mobile app debugging (Android + iOS), with focus on security and reliability",
+  "type": "module",
+  "bin": {
+    "mobile-debug-mcp": "./dist/server.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node ./dist/server.js",
+    "prepare": "npm run build",
+    "healthcheck": "tsx ./src/utils/cli/idb/check-idb.ts",
+    "install-idb": "tsx ./src/utils/cli/idb/install-idb.ts",
+    "preflight-ios": "tsx ./src/utils/cli/ios/preflight-ios.ts",
+    "test:unit": "tsx test/unit/index.ts",
+    "test:integration": "npm run test:device",
+    "test:device": "npm run build && tsx test/device/index.ts",
+    "test": "npm run test:unit",
+    "lint": "eslint src test --quiet",
+    "lint:fix": "eslint src test --fix",
+    "verify": "npm run lint && npm run build && npm run test:unit"
+  },
+
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "fast-xml-parser": "^5.5.1",
+    "zod": "^3.22.4",
+    "sharp": "^0.32.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-unused-imports": "^4.4.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

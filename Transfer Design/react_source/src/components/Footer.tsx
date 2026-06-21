@@ -1,6 +1,5 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
-import coralLogo from "../assets/corallogo.png";
 
 const NAV_GROUPS = [
   {
@@ -70,7 +69,7 @@ export default function Footer() {
               style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "40px", height: "40px", borderRadius: "10px", overflow: "hidden", flexShrink: 0 }}
               className="bg-[var(--bg-alt)] border border-[var(--border-subtle)] group-hover:border-[var(--brand-primary)] transition-colors"
             >
-              <img src={coralLogo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <img src="/corallogo.png" alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </span>
             <span
               style={{ fontFamily: "var(--font-body)", fontSize: "18px", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "0" }}

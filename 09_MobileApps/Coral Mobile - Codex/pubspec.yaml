@@ -1,0 +1,39 @@
+name: coral_health_ai
+description: Coral Health AI mobile application.
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  google_fonts: ^8.1.0
+  http: ^1.2.2
+  image_picker: ^1.2.2
+  shared_preferences: ^2.3.2
+  tflite_flutter: ^0.12.1
+  image: ^4.2.0
+  flutter_local_notifications: ^17.2.1
+  sqflite: ^2.4.3
+  path_provider: ^2.1.6
+  path: ^1.9.1
+  share_plus: ^13.1.0
+  pdf: ^3.11.3
+  intl: ^0.20.2
+  flutter_markdown: ^0.7.7+1
+  flutter_displaymode: ^0.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/reference_screens/
+    - assets/models/

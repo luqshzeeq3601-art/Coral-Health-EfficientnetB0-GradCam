@@ -329,7 +329,7 @@ function MicroCrosshair() {
         <circle cx="7" cy="7" r="5" strokeDasharray="2 2" />
         <path d="M7 1v2M7 11v2M1 7h2M11 7h2" strokeLinecap="round" />
       </motion.svg>
-      <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] shadow-[0_0_8px_var(--brand-glow)] animate-pulse" />
+      <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-primary)] shadow-[0_0_8px_var(--brand-glow)] animate-pulse" />
     </div>
   );
 }
@@ -351,7 +351,7 @@ function MicroCluster() {
         <circle cx="12" cy="9.5" r="0.75" fill="currentColor" stroke="none" />
         <path d="M7 3.5l-3 4.5M7 3.5l3 4.5M3.5 8.5h7" stroke="currentColor" strokeOpacity="0.3" strokeDasharray="1 1" />
       </motion.svg>
-      <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] shadow-[0_0_8px_var(--brand-glow)] animate-pulse" />
+      <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-primary)] shadow-[0_0_8px_var(--brand-glow)] animate-pulse" />
     </div>
   );
 }
@@ -821,7 +821,7 @@ function EnsemblePanel() {
                 <div className="absolute inset-0 bg-[var(--bg-alt)] opacity-0 group-hover:opacity-100 transition-opacity" />
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" strokeWidth="1.2"><rect x="3" y="3" width="18" height="18" rx="3" /><path d="M3 9h18M9 3v18" /></svg>
                 {/* Laser scan line */}
-                <motion.div className="absolute top-0 left-0 right-0 h-[3px] bg-[var(--brand-primary)] shadow-[0_0_8px_var(--brand-glow)]" animate={{ top: ["0%", "100%", "0%"] }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }} />
+                <motion.div className="absolute top-0 left-0 right-0 h-[3px] bg-[var(--text-primary)] shadow-[0_0_8px_var(--brand-glow)]" animate={{ top: ["0%", "100%", "0%"] }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }} />
               </div>
             </div>
             <div className="absolute top-[calc(100%+16px)] text-center w-[150%]">
