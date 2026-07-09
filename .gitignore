@@ -100,3 +100,14 @@ app/
 **/dist/
 
 
+# JetBrains IDE settings
+.idea/
+
+# Temporary extraction files
+.tmp_fyp_viva_extract/
+.tmp_fyp_viva_render/
+
+# AI Prompts
+.github/prompts/
+
+
