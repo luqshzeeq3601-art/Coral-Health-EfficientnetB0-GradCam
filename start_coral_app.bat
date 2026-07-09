@@ -40,11 +40,11 @@ if not exist "%~dp004_Web_Application\frontend\index.html" (
 )
 
 REM Start the Flask app
-start "Coral App" /D "%APP_DIR%" cmd /k ""%PYTHON_EXEC%" app.py"
+start "Coral App" /D "%APP_DIR%" cmd /k call "%PYTHON_EXEC%" app.py
 
 REM Start the Cloudflare tunnel for coralhealth.systems.
 if not "%CLOUDFLARED%"=="" (
-    start "Coral Tunnel" cmd /k ""%CLOUDFLARED%" tunnel --config "%TUNNEL_CONFIG%" run coralapp"
+    start "Coral Tunnel" cmd /k call "%CLOUDFLARED%" tunnel --config "%TUNNEL_CONFIG%" run coralapp
 ) else (
     echo [WARN] cloudflared not found in standard directories or PATH.
 )

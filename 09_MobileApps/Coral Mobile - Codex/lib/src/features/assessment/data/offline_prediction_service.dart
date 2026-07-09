@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
@@ -19,21 +18,33 @@ class OfflinePredictionService {
     return _instance;
   }
 
-  OfflinePredictionService._internal() {
-    _init();
-  }
+  OfflinePredictionService._internal();
 
   bool _isInitialized = false;
-  
-  final List<Interpreter> _ensembleInterpreters = [];
-  final List<IsolateInterpreter> _ensembleIsolateInterpreters = [];
-  
+
+  // The base model is the lightweight default. It is loaded eagerly on preload
+  // so a default (base) prediction is ready without spinning up the full
+  // ensemble.
   Interpreter? _baseInterpreter;
   IsolateInterpreter? _baseIsolateInterpreter;
-  
-  double _temperature = 1.0;
-  Future<void>? _initFuture;
 
+  // The ensemble (5 seeds) is heavy (~45 MB of models + 5 background isolates),
+  // so it is lazy-loaded only when an ensemble prediction is actually requested.
+  final List<Interpreter> _ensembleInterpreters = [];
+  final List<IsolateInterpreter> _ensembleIsolateInterpreters = [];
+  bool _ensembleLoaded = false;
+
+  double _temperature = 1.0;
+  Directory? _modelsDir;
+  Future<void>? _initFuture;
+  Future<void>? _ensembleLoadFuture;
+
+  /// Whether the heavy ensemble models are resident in memory. The UI can use
+  /// this to show a "preparing high-accuracy models" state, since the first
+  /// ensemble prediction triggers a lazy load.
+  bool get isEnsembleLoaded => _ensembleLoaded;
+
+  /// Warm up the default (base) model. Safe to call multiple times.
   Future<void> preload() async {
     await _init();
   }
@@ -51,56 +62,140 @@ class OfflinePredictionService {
           await rootBundle.loadString('assets/models/temperature.txt');
       _temperature = double.tryParse(tempStr.trim()) ?? 1.0;
     } catch (e) {
-      _temperature = 0.4414; 
+      _temperature = 0.4414;
     }
 
     try {
-      final docDir = await getApplicationDocumentsDirectory();
-      final modelsDir = Directory('${docDir.path}/tflite_models');
-      if (!await modelsDir.exists()) {
-        await modelsDir.create(recursive: true);
-      }
+      _modelsDir = await _ensureModelsDir();
 
-      // Extract ensemble models and initialize IsolateInterpreters
-      for (int seed = 42; seed <= 46; seed++) {
-        try {
-          final filePath = '${modelsDir.path}/coral_ensemble_seed$seed.tflite';
-          final file = File(filePath);
-          if (!await file.exists()) {
-            final data = await rootBundle.load('assets/models/coral_ensemble_seed$seed.tflite');
-            await file.writeAsBytes(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes), flush: true);
-          }
-          final interpreter = Interpreter.fromFile(file);
-          final isolateInterp = await IsolateInterpreter.create(address: interpreter.address);
-          
-          _ensembleInterpreters.add(interpreter);
-          _ensembleIsolateInterpreters.add(isolateInterp);
-        } catch (e) {
-          debugPrint('Failed to extract/load ensemble model seed $seed: $e');
-        }
-      }
+      // Load ONLY the base model by default to keep startup memory low.
+      // The ensemble is loaded on demand via [_ensureEnsembleLoaded].
+      final file = await _extractModelFile('coral_base.tflite', _modelsDir!);
+      final interpreter = Interpreter.fromFile(file);
+      final isolateInterp =
+          await IsolateInterpreter.create(address: interpreter.address);
 
-      // Extract base model and initialize IsolateInterpreter
-      try {
-        final filePath = '${modelsDir.path}/coral_base.tflite';
-        final file = File(filePath);
-        if (!await file.exists()) {
-          final data = await rootBundle.load('assets/models/coral_base.tflite');
-          await file.writeAsBytes(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes), flush: true);
-        }
-        final interpreter = Interpreter.fromFile(file);
-        final isolateInterp = await IsolateInterpreter.create(address: interpreter.address);
-        
-        _baseInterpreter = interpreter;
-        _baseIsolateInterpreter = isolateInterp;
-      } catch (e) {
-        debugPrint('Failed to extract/load base model: $e');
-      }
+      _baseInterpreter = interpreter;
+      _baseIsolateInterpreter = isolateInterp;
     } catch (e) {
-      debugPrint('Failed to access documents directory: $e');
+      debugPrint('Failed to extract/load base model: $e');
     }
 
     _isInitialized = true;
+  }
+
+  Future<Directory> _ensureModelsDir() async {
+    final docDir = await getApplicationDocumentsDirectory();
+    final modelsDir = Directory('${docDir.path}/tflite_models');
+    if (!await modelsDir.exists()) {
+      await modelsDir.create(recursive: true);
+    }
+    return modelsDir;
+  }
+
+  /// Copies a bundled `.tflite` asset to the documents directory using an
+  /// atomic write: data is written to a temporary file, validated against the
+  /// bundled asset's byte length, and only then renamed into place. This
+  /// guarantees an interrupted write can never leave a half-written (corrupt)
+  /// model that would be silently reused on the next launch.
+  Future<File> _extractModelFile(
+      String assetFileName, Directory modelsDir) async {
+    final data = await rootBundle.load('assets/models/$assetFileName');
+    final expectedLength = data.lengthInBytes;
+    final dest = File('${modelsDir.path}/$assetFileName');
+
+    // Reuse an existing copy only if its size matches the bundled asset exactly.
+    if (await dest.exists() && await dest.length() == expectedLength) {
+      return dest;
+    }
+
+    final tmp = File('${dest.path}.tmp');
+    if (await tmp.exists()) {
+      await tmp.delete();
+    }
+    await tmp.writeAsBytes(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      flush: true,
+    );
+
+    // Size validation: a truncated write is rejected before it is committed.
+    // (A SHA checksum could be layered on here for stronger integrity.)
+    if (await tmp.length() != expectedLength) {
+      await tmp.delete();
+      throw PredictionServiceException(
+          'Model "$assetFileName" failed size validation after extraction.');
+    }
+
+    if (await dest.exists()) {
+      await dest.delete();
+    }
+    await tmp.rename(dest.path);
+    return dest;
+  }
+
+  Future<void> _ensureEnsembleLoaded() {
+    _ensembleLoadFuture ??= _loadEnsemble();
+    return _ensembleLoadFuture!;
+  }
+
+  Future<void> _loadEnsemble() async {
+    await _init();
+    final modelsDir = _modelsDir ?? await _ensureModelsDir();
+
+    for (int seed = 42; seed <= 46; seed++) {
+      try {
+        final file =
+            await _extractModelFile('coral_ensemble_seed$seed.tflite', modelsDir);
+        final interpreter = Interpreter.fromFile(file);
+        final isolateInterp =
+            await IsolateInterpreter.create(address: interpreter.address);
+
+        _ensembleInterpreters.add(interpreter);
+        _ensembleIsolateInterpreters.add(isolateInterp);
+      } catch (e) {
+        debugPrint('Failed to extract/load ensemble model seed $seed: $e');
+      }
+    }
+
+    if (_ensembleInterpreters.isEmpty) {
+      // Nothing loaded — clear the cached future so a later attempt can retry.
+      _ensembleLoadFuture = null;
+    } else {
+      _ensembleLoaded = true;
+    }
+  }
+
+  /// Releases the lazy-loaded ensemble models and their background isolates.
+  /// The base model stays resident so default predictions keep working. Call
+  /// this to reclaim memory after a burst of ensemble predictions or under
+  /// memory pressure.
+  Future<void> disposeEnsemble() async {
+    for (final iso in _ensembleIsolateInterpreters) {
+      await iso.close();
+    }
+    for (final interp in _ensembleInterpreters) {
+      interp.close();
+    }
+    _ensembleIsolateInterpreters.clear();
+    _ensembleInterpreters.clear();
+    _ensembleLoaded = false;
+    _ensembleLoadFuture = null;
+  }
+
+  /// Fully tears down the service: closes every interpreter (base + ensemble)
+  /// and the isolates backing them, then resets state so the next [predict] or
+  /// [preload] re-initializes cleanly. Prevents native interpreter memory from
+  /// leaking for the lifetime of the process.
+  Future<void> dispose() async {
+    await disposeEnsemble();
+
+    await _baseIsolateInterpreter?.close();
+    _baseInterpreter?.close();
+    _baseIsolateInterpreter = null;
+    _baseInterpreter = null;
+
+    _isInitialized = false;
+    _initFuture = null;
   }
 
   Future<PredictionResult> predict({
@@ -109,13 +204,17 @@ class OfflinePredictionService {
   }) async {
     await _init();
 
-    if (config.modelType == ModelType.ensemble && _ensembleIsolateInterpreters.isEmpty) {
-      throw const PredictionServiceException(
-          'No offline ensemble models could be loaded.');
-    }
-    if (config.modelType == ModelType.base && _baseIsolateInterpreter == null) {
-      throw const PredictionServiceException(
-          'Offline base model could not be loaded.');
+    if (config.modelType == ModelType.ensemble) {
+      await _ensureEnsembleLoaded();
+      if (_ensembleIsolateInterpreters.isEmpty) {
+        throw const PredictionServiceException(
+            'No offline ensemble models could be loaded.');
+      }
+    } else {
+      if (_baseIsolateInterpreter == null) {
+        throw const PredictionServiceException(
+            'Offline base model could not be loaded.');
+      }
     }
 
     // 1. Load image bytes
@@ -129,7 +228,11 @@ class OfflinePredictionService {
       throw const PredictionServiceException('No valid image path provided.');
     }
 
-    // 2. Preprocess image in background isolate to avoid UI lag
+    // 2. Preprocess image in a background isolate to avoid UI lag.
+    //    The tensor is built as a flat Float32List (HWC, raw 0-255 values that
+    //    the model rescales internally) rather than a nested
+    //    List<List<List<List<double>>>>. Flat typed data avoids millions of
+    //    boxed doubles and transfers across the isolate boundary cheaply.
     final preprocessResult = await Isolate.run(() {
       final decoded = img.decodeImage(imageBytes);
       if (decoded == null) return null;
@@ -137,42 +240,45 @@ class OfflinePredictionService {
       final resizedImage = img.copyResize(decoded,
           width: 224, height: 224, interpolation: img.Interpolation.linear);
 
-      final inputTensor = List.generate(
-        1,
-        (i) => List.generate(
-          224,
-          (y) => List.generate(
-            224,
-            (x) {
-              final pixel = resizedImage.getPixel(x, y);
-              return [
-                pixel.r.toDouble(),
-                pixel.g.toDouble(),
-                pixel.b.toDouble()
-              ];
-            },
-          ),
-        ),
-      );
+      final input = Float32List(224 * 224 * 3);
+      int idx = 0;
+      for (int y = 0; y < 224; y++) {
+        for (int x = 0; x < 224; x++) {
+          final pixel = resizedImage.getPixel(x, y);
+          input[idx++] = pixel.r.toDouble();
+          input[idx++] = pixel.g.toDouble();
+          input[idx++] = pixel.b.toDouble();
+        }
+      }
 
-      return {'tensor': inputTensor, 'image': resizedImage};
+      // Pass the raw byte view: tflite_flutter copies a Uint8List straight into
+      // the input tensor without re-inferring (and accidentally resizing) the
+      // [1,224,224,3] shape.
+      return {
+        'bytes': input.buffer.asUint8List(0, input.lengthInBytes),
+        'image': resizedImage,
+      };
     });
 
     if (preprocessResult == null) {
       throw const PredictionServiceException('Could not decode image.');
     }
 
-    final inputTensor = preprocessResult['tensor'] as List<List<List<List<double>>>>;
+    final inputBytes = preprocessResult['bytes'] as Uint8List;
     final resizedImage = preprocessResult['image'] as img.Image;
 
-    final models = config.modelType == ModelType.ensemble ? _ensembleInterpreters : [_baseInterpreter!];
-    final isolateModels = config.modelType == ModelType.ensemble ? _ensembleIsolateInterpreters : [_baseIsolateInterpreter!];
+    final models = config.modelType == ModelType.ensemble
+        ? _ensembleInterpreters
+        : [_baseInterpreter!];
+    final isolateModels = config.modelType == ModelType.ensemble
+        ? _ensembleIsolateInterpreters
+        : [_baseIsolateInterpreter!];
 
     List<List<double>> allProbs = [];
     List<List<dynamic>> rawNestedActivations = [];
     List<IndividualModelResult> individualResults = [];
     int globalConvChannels = 1280;
-    
+
     final labels = ['Healthy', 'Bleached', 'Dead'];
 
     Object createBuffer(List<int> s) {
@@ -211,7 +317,7 @@ class OfflinePredictionService {
       }
 
       // Natively runs in background via tflite_flutter's official isolate support
-      await isolateInterpreter.runForMultipleInputs([inputTensor], outputs);
+      await isolateInterpreter.runForMultipleInputs([inputBytes], outputs);
 
       final rawProbs = (outputs[denseIndex] as List)[0] as List<double>;
       allProbs.add(rawProbs);

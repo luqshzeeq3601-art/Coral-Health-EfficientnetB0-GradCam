@@ -91,14 +91,14 @@ Develop and deploy a **production-ready deep learning system** for automated cor
 | Week | Date Range | Event | Status |
 |------|-----------|-------|--------|
 | W1 | 16–22 Mar 2026 | FYP2 Briefing | ✅ Done |
-| W2 | 23–29 Mar 2026 | Dataset & Environment Setup | 🟡 In Progress |
-| W4 | 06–12 Apr 2026 | Talk 1: Introduction & Plagiarism | ⬜ Upcoming |
-| W5 | 20–26 Apr 2026 | Talk 2: Analysis of Result & Discussion | ⬜ Upcoming |
-| W6 | 27 Apr–03 May 2026 | Talk 3: ChatGPT & AI Tools | ⬜ Upcoming |
-| **W7** | **04–10 May 2026** | **Progress Report 1 Submission** | ⬜ Upcoming |
-| W11 | 25–31 May 2026 | Semester Break | ⬜ — |
-| **W12** | **08–14 Jun 2026** | **Progress Report 2 Submission** / Talk 4 | ⬜ Upcoming |
-| **W14** | **22–28 Jun 2026** | **Full Report Deadline (26 Jun)** | ⬜ Upcoming |
+| W2 | 23–29 Mar 2026 | Dataset & Environment Setup | ✅ Done |
+| W4 | 06–12 Apr 2026 | Talk 1: Introduction & Plagiarism | ✅ Done |
+| W5 | 20–26 Apr 2026 | Talk 2: Analysis of Result & Discussion | ✅ Done |
+| W6 | 27 Apr–03 May 2026 | Talk 3: ChatGPT & AI Tools | ✅ Done |
+| **W7** | **04–10 May 2026** | **Progress Report 1 Submission** | ✅ Done |
+| W11 | 25–31 May 2026 | Semester Break | ✅ Done |
+| **W12** | **08–14 Jun 2026** | **Progress Report 2 Submission** / Talk 4 | ✅ Done |
+| **W14** | **22–28 Jun 2026** | **Full Report Deadline (26 Jun)** | 🟡 In Progress |
 | **W15** | **29 Jun–05 Jul 2026** | **🎓 Viva Presentation** | ⬜ Upcoming |
 | **W16** | **06–12 Jul 2026** | **Final Report & TOC Deadline (12 Jul)** | ⬜ Upcoming |
 
@@ -123,4 +123,4 @@ Develop and deploy a **production-ready deep learning system** for automated cor
 
 *Project: Coral Reef Health Assessment via Convolutional Neural Network-based Image Analysis*  
 *Supervisor: Assoc. Prof. Ts. Dr. Yasmin Yacob*  
-*Last Updated: 2 April 2026*
+*Last Updated: 24 June 2026*

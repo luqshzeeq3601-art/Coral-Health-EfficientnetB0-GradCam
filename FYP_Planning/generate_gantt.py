@@ -40,10 +40,10 @@ def create_gantt(tasks, filename, title, color='#2e7d32'):
     ax.spines['left'].set_visible(False)
     
     plt.tight_layout()
-    output_path = os.path.join(r"c:\Users\ZeeqRyz\Desktop\BASEPROJECT\FYP_Planning", filename)
+    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"✅ Generated {filename}")
+    print(f"[OK] Generated {filename}")
 
 if __name__ == "__main__":
     # FYP 1 Data (Semester 7 - Based on Historical Records)
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         ("98.11% Achievement Milestone", "2026-05-03", "2026-05-04"),
         ("Evaluation & Grad-CAM XAI", "2026-05-04", "2026-05-17"),
         ("Web Application Development", "2026-05-18", "2026-06-07"),
-        ("Full Report Writing", "2026-06-08", "2026-06-25"),
+        ("Full Report Writing", "2026-06-08", "2026-06-26"),
         ("Final Viva Voce", "2026-06-29", "2026-07-05"),
         ("Final Submission", "2026-07-06", "2026-07-12")
     ]

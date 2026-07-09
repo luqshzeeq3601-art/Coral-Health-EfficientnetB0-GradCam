@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -12,6 +11,8 @@ import '../../../shared/bottom_nav.dart';
 import '../../../shared/primary_action_button.dart';
 import '../data/prediction_repository.dart';
 import '../models/assessment_models.dart';
+import '../widgets/oceanic_background.dart';
+import '../widgets/processing_orb.dart';
 
 class AnalyzePage extends StatefulWidget {
   const AnalyzePage({
@@ -108,6 +109,14 @@ class _AnalyzePageState extends State<AnalyzePage>
     if (_result != null && _pipelineController.isCompleted) {
       if (!_navigated) {
         _navigated = true;
+
+        // Trigger notification exactly as we transition
+        _settingsStore.getAssessmentNotificationsEnabled().then((showNotification) {
+          if (showNotification && mounted) {
+            _showCompletionNotification(_result!);
+          }
+        });
+
         Future.delayed(const Duration(milliseconds: 50), () {
           if (!mounted) return;
           Navigator.of(context).pushReplacementNamed(
@@ -125,7 +134,7 @@ class _AnalyzePageState extends State<AnalyzePage>
     await _notificationsPlugin.initialize(
       initSettings,
     );
-    
+
     // Request permission on Android 13+ (API 33+)
     final androidPlugin = _notificationsPlugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
@@ -136,15 +145,16 @@ class _AnalyzePageState extends State<AnalyzePage>
 
   Future<void> _showCompletionNotification(PredictionResult result) async {
     const androidDetails = AndroidNotificationDetails(
-      'assessment_channel_id',
+      'assessment_channel_id_v2',
       'Assessment Complete',
       channelDescription: 'Notifications for completed coral health assessments',
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
+      playSound: true,
     );
     const platformDetails = NotificationDetails(android: androidDetails);
-    
+
     await _notificationsPlugin.show(
       0,
       'Coral Assessment Complete',
@@ -186,11 +196,6 @@ class _AnalyzePageState extends State<AnalyzePage>
       final result = await _repository.runPrediction(run);
       if (!mounted) return;
 
-      // Trigger notification if enabled in preferences
-      final showNotification = await _settingsStore.getAssessmentNotificationsEnabled();
-      if (showNotification) {
-        await _showCompletionNotification(result);
-      }
       // Smoothly animate the rest of the gauge based on how much is left
       if (_pipelineController.isAnimating) {
         final remainingFraction = 1.0 - _pipelineController.value;
@@ -243,8 +248,8 @@ class _AnalyzePageState extends State<AnalyzePage>
       body: Stack(
         children: [
           // 1. Fluid Oceanic Background
-          _OceanicBackground(controller: _bgController),
-          
+          OceanicBackground(controller: _bgController),
+
           // 2. Main Content
           SafeArea(
             bottom: false,
@@ -295,7 +300,7 @@ class _AnalyzePageState extends State<AnalyzePage>
                   RepaintBoundary(
                     child: AnimatedBuilder(
                       animation: _pipelineController,
-                      builder: (context, _) => _ProcessingOrb(
+                      builder: (context, _) => ProcessingOrb(
                         pulseAnimation: _pulseController,
                         overallProgress: _pipelineController.value,
                       ),
@@ -547,519 +552,6 @@ class _CompactActionButton extends StatelessWidget {
   }
 }
 
-class _OceanicBackground extends StatelessWidget {
-  const _OceanicBackground({required this.controller});
-  final AnimationController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, child) {
-        final v = controller.value * 2 * math.pi;
-        return Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDark
-                      ? [const Color(0xFF050E25), const Color(0xFF040D21), const Color(0xFF020712)]
-                      : [Colors.white, const Color(0xFFFBFBFA), AppColors.page],
-                ),
-              ),
-            ),
-            // Moving aurora blobs (subtle & pastel for light/dark theme consistency)
-            Positioned(
-              top: math.sin(v) * 50 - 100,
-              left: math.cos(v) * 50 - 100,
-              child: _BlurBlob(
-                color: isDark
-                    ? const Color(0xFF0EA5FF).withValues(alpha: 0.05)
-                    : AppColors.primary.withValues(alpha: 0.06),
-                size: 400,
-              ),
-            ),
-            Positioned(
-              bottom: math.cos(v * 1.5) * 60 - 50,
-              right: math.sin(v * 1.2) * 60 - 50,
-              child: _BlurBlob(
-                color: isDark
-                    ? const Color(0xFF0057E6).withValues(alpha: 0.04)
-                    : AppColors.cyan.withValues(alpha: 0.05),
-                size: 350,
-              ),
-            ),
-            Positioned(
-              top: math.cos(v * 0.8) * 40 + 200,
-              right: math.sin(v * 0.9) * 40 - 100,
-              child: _BlurBlob(
-                color: isDark
-                    ? const Color(0xFF8B5CF6).withValues(alpha: 0.03)
-                    : AppColors.violet.withValues(alpha: 0.04),
-                size: 300,
-              ),
-            ),
-            // Noise Overlay for texture
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0.02,
-                child: Image.asset(
-                  'assets/images/noise.png',
-                  repeat: ImageRepeat.repeat,
-                  cacheWidth: 400,
-                  errorBuilder: (c, e, s) => Container(color: Colors.transparent),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _BlurBlob extends StatelessWidget {
-  const _BlurBlob({required this.color, required this.size});
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    // Performance: replaced BackdropFilter(sigma=80) with a cheap RadialGradient.
-    // BackdropFilter is the most expensive widget in Flutter — using 3 of them
-    // with sigma=80 and repositioning every frame was the #1 perf killer.
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [color, color.withValues(alpha: 0.0)],
-          stops: const [0.0, 1.0],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProcessingOrb extends StatelessWidget {
-  const _ProcessingOrb({
-    required this.pulseAnimation,
-    required this.overallProgress,
-  });
-
-  final Animation<double> pulseAnimation;
-  final double overallProgress;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(32),
-      child: Container(
-        height: 280,
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF0E1A33).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(
-              color: isDark ? const Color(0xFF1E2F4D).withValues(alpha: 0.8) : AppColors.line.withValues(alpha: 0.8),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: isDark ? const Color(0x1A000000) : const Color(0x122362A7),
-                blurRadius: 40,
-                offset: const Offset(0, 20),
-              )
-            ],
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Rotating Outer Scanner Ring
-              AnimatedBuilder(
-                animation: pulseAnimation,
-                builder: (context, child) {
-                  return Transform.rotate(
-                    angle: pulseAnimation.value * math.pi * 2,
-                    child: SizedBox.square(
-                      dimension: 220,
-                      child: CustomPaint(
-                        painter: _DashedScannerPainter(),
-                      ),
-                    ),
-                  );
-                }
-              ),
-              
-              // Progress Ring
-              SizedBox.square(
-                dimension: 190,
-                child: CustomPaint(
-                  painter: _HudRingPainter(
-                    progress: overallProgress,
-                  ),
-                ),
-              ),
-
-              // Inner Custom Coral Node
-              AnimatedBuilder(
-                animation: pulseAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: 1.0 + math.sin(pulseAnimation.value * math.pi * 2) * 0.04,
-                    child: Container(
-                      width: 110,
-                      height: 110,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const RadialGradient(
-                          colors: [
-                            Color(0xFF0EA5FF),
-                            Color(0xFF0057E6),
-                          ],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.25),
-                            blurRadius: 24,
-                            spreadRadius: 4,
-                          ),
-                        ],
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: Center(
-                        child: CustomPaint(
-                          size: const Size(68, 68),
-                          painter: _BrainPainter(animationValue: pulseAnimation.value),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-    );
-  }
-}
-
-class _BrainPainter extends CustomPainter {
-  final double animationValue;
-  _BrainPainter({required this.animationValue});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final outlinePaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-      
-    final circuitBasePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.25)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final circuitGlowPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    
-    // Scale slightly to fit nicely. Base coordinates designed for 44x44
-    final double s = size.width / 44.0;
-    canvas.scale(s, s);
-
-    // Center Fissure
-    canvas.drawLine(const Offset(0, -15), const Offset(0, 15), outlinePaint);
-
-    // Left Hemisphere
-    final leftPath = Path();
-    leftPath.moveTo(0, -15);
-    leftPath.cubicTo(-10, -22, -18, -12, -13, -6);
-    leftPath.cubicTo(-24, -4, -22, 9, -13, 9);
-    leftPath.cubicTo(-17, 18, -4, 20, 0, 15);
-    canvas.drawPath(leftPath, outlinePaint);
-
-    // Right Hemisphere
-    final rightPath = Path();
-    rightPath.moveTo(0, -15);
-    rightPath.cubicTo(10, -22, 18, -12, 13, -6);
-    rightPath.cubicTo(24, -4, 22, 9, 13, 9);
-    rightPath.cubicTo(17, 18, 4, 20, 0, 15);
-    canvas.drawPath(rightPath, outlinePaint);
-
-    // Helper to draw circuits
-    void drawCircuit(List<Offset> points, double offsetDelay, double speedMultiplier) {
-      final path = Path();
-      path.moveTo(points.first.dx, points.first.dy);
-      for (int i = 1; i < points.length; i++) {
-        path.lineTo(points[i].dx, points[i].dy);
-      }
-      
-      // Draw faint base path
-      canvas.drawPath(path, circuitBasePaint);
-
-      final metrics = path.computeMetrics().toList();
-      if (metrics.isEmpty) return;
-      
-      final metric = metrics.first;
-      final length = metric.length;
-      
-      // Electricity animation loop
-      final double rawProgress = (animationValue * speedMultiplier + offsetDelay) % 1.0;
-      
-      const tailLength = 6.0; 
-      final distance = (length + tailLength) * rawProgress;
-      
-      final start = (distance - tailLength).clamp(0.0, length).toDouble();
-      final end = distance.clamp(0.0, length).toDouble();
-      
-      // Draw sharp electricity pulse
-      if (start < end) {
-        final extractPath = metric.extractPath(start, end);
-        canvas.drawPath(extractPath, circuitGlowPaint);
-      }
-      
-      // Terminal dot behavior
-      double radius = 1.5; // Sharp base dot
-      
-      if (distance >= length && distance <= length + tailLength) {
-         // Flash the dot when electricity hits it
-         final hitProgress = (distance - length) / tailLength; 
-         // Pop effect: expands to 3.0 then shrinks back to 1.5
-         radius = 1.5 + 1.5 * math.sin(hitProgress * math.pi);
-      }
-      
-      final activeDotPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.fill;
-        
-      canvas.drawCircle(points.last, radius, activeDotPaint);
-    }
-
-    // Left Circuits
-    drawCircuit(const [Offset(0, -6), Offset(-4, -10), Offset(-9, -10)], 0.0, 1.5);
-    drawCircuit(const [Offset(0, 1), Offset(-4, 1), Offset(-8, 5)], 0.4, 2.0);
-    drawCircuit(const [Offset(0, 8), Offset(-4, 12)], 0.8, 1.2);
-
-    // Right Circuits
-    drawCircuit(const [Offset(0, -9), Offset(4, -13), Offset(9, -13)], 0.2, 1.8);
-    drawCircuit(const [Offset(0, -2), Offset(4, -2), Offset(8, 2)], 0.6, 1.4);
-    drawCircuit(const [Offset(0, 5), Offset(4, 9)], 0.9, 2.2);
-
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _BrainPainter oldDelegate) => 
-      oldDelegate.animationValue != animationValue;
-}
-
-class _DashedScannerPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final radius = size.width / 2;
-    
-    // Faint inner and outer guide rings for a precision guide look
-    final guidePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5
-      ..color = AppColors.muted.withValues(alpha: 0.15);
-      
-    canvas.drawCircle(center, radius + 2, guidePaint);
-    canvas.drawCircle(center, radius - 8, guidePaint);
-    
-    // Radial ticks
-    final tickPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round
-      ..color = AppColors.muted.withValues(alpha: 0.25);
-      
-    final majorTickPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round
-      ..color = AppColors.muted.withValues(alpha: 0.4);
-
-    const tickCount = 72;
-    for (int i = 0; i < tickCount; i++) {
-      final angle = (i * math.pi * 2) / tickCount;
-      final bool isMajor = i % 6 == 0;
-      final innerRadius = isMajor ? radius - 7 : radius - 3;
-      
-      final p1 = Offset(
-        center.dx + innerRadius * math.cos(angle),
-        center.dy + innerRadius * math.sin(angle),
-      );
-      final p2 = Offset(
-        center.dx + radius * math.cos(angle),
-        center.dy + radius * math.sin(angle),
-      );
-      
-      canvas.drawLine(p1, p2, isMajor ? majorTickPaint : tickPaint);
-    }
-    
-    // Active Sweep Segment (Radar tail effect)
-    for (int i = 0; i < 18; i++) {
-      final angle = (i * math.pi * 2) / tickCount;
-      // Fade intensity from head (i=0) to tail (i=17)
-      final sweepAlpha = (18 - i) / 18.0; 
-      
-      final sweepTickPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.2
-        ..strokeCap = StrokeCap.round
-        ..color = AppColors.primary.withValues(alpha: sweepAlpha * 0.9);
-        
-      final innerRadius = radius - 6;
-      final p1 = Offset(
-        center.dx + innerRadius * math.cos(angle),
-        center.dy + innerRadius * math.sin(angle),
-      );
-      final p2 = Offset(
-        center.dx + radius * math.cos(angle),
-        center.dy + radius * math.sin(angle),
-      );
-      
-      canvas.drawLine(p1, p2, sweepTickPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-
-class _HudRingPainter extends CustomPainter {
-  const _HudRingPainter({
-    required this.progress,
-  });
-
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final radius = size.width / 2;
-
-    // Background groove track
-    final trackPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.round
-      ..color = Colors.white.withValues(alpha: 0.5);
-      
-    final trackBorderPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.round
-      ..color = AppColors.line.withValues(alpha: 0.4);
-
-    // Active Gradient Progress
-    final activePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round
-      ..shader = const SweepGradient(
-        colors: [
-          Color(0xFF0057E6), // Deep Blue
-          Color(0xFF0EA5FF), // Cyan
-          Color(0xFF16B979), // Green
-          Color(0xFF5CD8A5), // Light Green
-        ],
-        stops: [0.0, 0.4, 0.7, 1.0],
-        transform: GradientRotation(math.pi * 0.8),
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-
-    // Glow Bloom
-    final shadowPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6)
-      ..color = AppColors.primary.withValues(alpha: 0.25);
-
-    const startAngle = -math.pi * 1.2;
-    const maxSweep = math.pi * 1.4;
-
-    // Draw groove
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      maxSweep,
-      false,
-      trackPaint,
-    );
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      maxSweep,
-      false,
-      trackBorderPaint,
-    );
-
-    if (progress > 0) {
-      final currentSweep = maxSweep * progress;
-      
-      // Draw shadow
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        currentSweep,
-        false,
-        shadowPaint,
-      );
-      
-      // Draw progress
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        currentSweep,
-        false,
-        activePaint,
-      );
-      
-      // Draw a glowing head dot at the tip of the progress
-      final headAngle = startAngle + currentSweep;
-      final headPos = Offset(
-        center.dx + radius * math.cos(headAngle),
-        center.dy + radius * math.sin(headAngle),
-      );
-      
-      final headGlowPaint = Paint()
-        ..color = Colors.white.withValues(alpha: 0.8)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
-        
-      final headCorePaint = Paint()
-        ..color = Colors.white;
-        
-      canvas.drawCircle(headPos, 5.0, headGlowPaint);
-      canvas.drawCircle(headPos, 3.5, headCorePaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _HudRingPainter oldDelegate) {
-    return oldDelegate.progress != progress;
-  }
-}
-
 enum PipelineStatus { standby, queued, running, complete }
 
 class PipelineStepData {
@@ -1226,22 +718,22 @@ class _PipelineStep extends StatelessWidget {
     final isRunning = status == PipelineStatus.running;
     final isComplete = status == PipelineStatus.complete;
     final isActive = isRunning || isComplete;
-    
+
     Widget cardContent = Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0E1A33) : Colors.white,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isActive 
-              ? color.withValues(alpha: isRunning ? 0.3 : 0.1) 
+          color: isActive
+              ? color.withValues(alpha: isRunning ? 0.3 : 0.1)
               : (isDark ? const Color(0xFF1E2F4D) : AppColors.muted.withValues(alpha: 0.1)),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: isActive 
-                ? color.withValues(alpha: 0.08) 
+            color: isActive
+                ? color.withValues(alpha: 0.08)
                 : (isDark ? const Color(0x1A000000) : const Color(0x06000000)),
             blurRadius: isActive ? 24 : 12,
             offset: const Offset(0, 8),
@@ -1270,7 +762,7 @@ class _PipelineStep extends StatelessWidget {
                 ),
               ),
             ),
-            
+
           // If complete, add a very subtle success wash
           if (isComplete)
             Positioned.fill(
@@ -1309,7 +801,7 @@ class _PipelineStep extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-                
+
                 // Text Content
                 Expanded(
                   child: Column(
@@ -1338,7 +830,7 @@ class _PipelineStep extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 // Status Indicator
                 if (isActive) ...[
                   const SizedBox(width: 12),
@@ -1438,7 +930,7 @@ class _PipelineStep extends StatelessWidget {
 
 class _ShimmerButton extends StatelessWidget {
   const _ShimmerButton({required this.shimmerController, required this.onPressed});
-  
+
   final AnimationController shimmerController;
   final VoidCallback onPressed;
 

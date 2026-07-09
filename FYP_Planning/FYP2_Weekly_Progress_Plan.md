@@ -54,7 +54,7 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 | **Deliverables** | ✅ `split_info_v3.json` — fixed dataset split file |
 |                  | ✅ EDA notebook with class distribution charts |
 |                  | ✅ Data quality assessment report |
-| **Status** | 🟡 In Progress |
+| **Status** | 🟢 Completed |
 
 ---
 
@@ -70,7 +70,7 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 | **Deliverables** | ✅ Standardized preprocessing pipeline |
 |                  | ✅ Augmentation configuration documented |
 |                  | ✅ Augmented training samples verified |
-| **Status** | ⬜ Pending |
+| **Status** | 🟢 Completed |
 
 ---
 
@@ -88,7 +88,7 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 | **Deliverables** | ✅ Baseline model trained with initial accuracy metrics |
 |                  | ✅ Training history plots (loss & accuracy curves) |
 |                  | ✅ Understanding of plagiarism guidelines |
-| **Status** | ⬜ Pending |
+| **Status** | 🟢 Completed |
 
 ---
 
@@ -106,7 +106,7 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 | **Deliverables** | ✅ 5 trained SWA model weight files (`.h5`) |
 |                  | ✅ Comparative analysis: SWA vs. non-SWA performance |
 |                  | ✅ Training script: `train_v4_robust.py` |
-| **Status** | ⬜ Pending |
+| **Status** | 🟢 Completed |
 
 ---
 
@@ -124,7 +124,7 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 | **Deliverables** | ✅ TTA inference pipeline |
 |                  | ✅ Temperature calibration file: `temperature.txt` |
 |                  | ✅ **Ensemble Test Accuracy: 98.11%** (159 images) |
-| **Status** | ⬜ Pending |
+| **Status** | 🟢 Completed |
 
 ---
 
@@ -142,7 +142,7 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 |                  | ✅ Classification report (Healthy: 0.99, Bleached: 0.98, Dead: 0.97) |
 |                  | ✅ **Progress Report 1 submitted** |
 | **Key Metrics** | Precision (macro): 0.99 · Recall (macro): 0.97 · F1 (macro): 0.98 |
-| **Status** | ⬜ Pending |
+| **Status** | 🟢 Completed |
 
 ---
 
@@ -158,7 +158,7 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 | **Deliverables** | ✅ Grad-CAM generation pipeline |
 |                  | ✅ Sample Grad-CAM visualizations for each class |
 |                  | ✅ Grad-CAM analysis documentation |
-| **Status** | ⬜ Pending |
+| **Status** | 🟢 Completed |
 
 ---
 
@@ -175,7 +175,7 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 | **Deliverables** | ✅ Flask backend with inference endpoints |
 |                  | ✅ API: `/predict` → returns class, confidence, Grad-CAM |
 |                  | ✅ Backend tested with sample images |
-| **Status** | ⬜ Pending |
+| **Status** | 🟢 Completed |
 
 ---
 
@@ -193,7 +193,7 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 | **Deliverables** | ✅ Complete web frontend with modern UI |
 |                  | ✅ Interactive image classification demo |
 |                  | ✅ Grad-CAM overlay display in browser |
-| **Status** | ⬜ Pending |
+| **Status** | 🟢 Completed |
 
 ---
 
@@ -210,7 +210,7 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 | **Deliverables** | ✅ Fully functional Coral Health AI web application |
 |                  | ✅ One-click launcher script |
 |                  | ✅ Test report with edge cases |
-| **Status** | ⬜ Pending |
+| **Status** | 🟢 Completed |
 
 ---
 
@@ -227,7 +227,7 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 |                | • Begin preparing viva presentation slides |
 | **Deliverables** | ✅ **Progress Report 2 submitted** |
 |                  | ✅ Presentation outline drafted |
-| **Status** | ⬜ Pending |
+| **Status** | 🟢 Completed |
 
 ---
 
@@ -243,7 +243,7 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 |                | • Write Chapter 5: Conclusion & Future Work |
 | **Deliverables** | ✅ Full report first draft (all chapters) |
 |                  | ✅ Properly formatted tables, figures, references |
-| **Status** | ⬜ Pending |
+| **Status** | 🟢 Completed |
 
 ---
 
@@ -258,7 +258,7 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 |                | • Format appendices (code listings, extra visualizations) |
 |                | • Submit full report by deadline |
 | **Deliverables** | ✅ **Full Report submitted (26 June 2026)** |
-| **Status** | ⬜ Pending |
+| **Status** | 🟡 In Progress |
 
 ---
 
@@ -341,5 +341,5 @@ To develop and deploy a **production-ready CNN-based system** (EfficientNetB0 + 
 
 ---
 
-*Last Updated: 2 April 2026*  
+*Last Updated: 24 June 2026*  
 *Supervisor: Assoc. Prof. Ts. Dr. Yasmin Yacob*

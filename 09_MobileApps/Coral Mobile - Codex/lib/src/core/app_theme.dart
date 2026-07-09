@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 abstract final class AppColors {
   static const page = Color(0xFFF7F5F1); // Soft warm off-white sand tone
@@ -34,9 +33,10 @@ abstract final class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.page,
-      fontFamily: GoogleFonts.inter().fontFamily,
-      textTheme: TextTheme(
-        displayLarge: GoogleFonts.rethinkSans(
+      fontFamily: 'Inter',
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(
+          fontFamily: 'Rethink Sans',
           fontSize:
               24, // docs/design/design.md display headers: Rethink Sans, Max size 24px on mobile
           height: 1.05,
@@ -44,27 +44,31 @@ abstract final class AppTheme {
           color: AppColors.ink,
           letterSpacing: -0.8,
         ),
-        headlineMedium: GoogleFonts.rethinkSans(
+        headlineMedium: TextStyle(
+          fontFamily: 'Rethink Sans',
           fontSize: 22,
           height: 1.15,
           fontWeight: FontWeight.w800,
           color: AppColors.ink,
           letterSpacing: -0.5,
         ),
-        titleLarge: GoogleFonts.rethinkSans(
+        titleLarge: TextStyle(
+          fontFamily: 'Rethink Sans',
           fontSize: 18,
           fontWeight: FontWeight.w800,
           color: AppColors.ink,
           letterSpacing: -0.2,
         ),
-        bodyLarge: GoogleFonts.inter(
+        bodyLarge: TextStyle(
+          fontFamily: 'Inter',
           fontSize: 15,
           height: 1.5,
           fontWeight: FontWeight.w500,
           color: AppColors.muted,
           letterSpacing: 0,
         ),
-        bodyMedium: GoogleFonts.inter(
+        bodyMedium: TextStyle(
+          fontFamily: 'Inter',
           fontSize: 13,
           height: 1.45,
           fontWeight: FontWeight.w500,

@@ -1,0 +1,294 @@
+{
+  "protocol": "Ablation Study — TTA & Multi-Seed Ensemble",
+  "test_set_size": 159,
+  "class_distribution": {
+    "Healthy": 72,
+    "Bleached": 72,
+    "Dead": 15
+  },
+  "tta_scales": [
+    224,
+    256
+  ],
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "results": [
+    {
+      "config": "A",
+      "accuracy": 96.23,
+      "total_errors": 6,
+      "total_correct": 153,
+      "macro_f1": 0.9339,
+      "mean_conf_correct": 90.85,
+      "mean_conf_wrong": 60.87,
+      "confidence_gap": 29.99,
+      "stability_flips_vs_5seed": 3,
+      "per_class": {
+        "Healthy": {
+          "precision": 0.96,
+          "recall": 1.0,
+          "f1": 0.9796,
+          "support": 72
+        },
+        "Bleached": {
+          "precision": 0.9718,
+          "recall": 0.9583,
+          "f1": 0.965,
+          "support": 72
+        },
+        "Dead": {
+          "precision": 0.9231,
+          "recall": 0.8,
+          "f1": 0.8571,
+          "support": 15
+        }
+      },
+      "description": "Single model, no TTA",
+      "num_seeds": 1,
+      "tta": false
+    },
+    {
+      "config": "B",
+      "accuracy": 96.86,
+      "total_errors": 5,
+      "total_correct": 154,
+      "macro_f1": 0.9469,
+      "mean_conf_correct": 90.38,
+      "mean_conf_wrong": 59.29,
+      "confidence_gap": 31.09,
+      "stability_flips_vs_5seed": 2,
+      "per_class": {
+        "Healthy": {
+          "precision": 0.96,
+          "recall": 1.0,
+          "f1": 0.9796,
+          "support": 72
+        },
+        "Bleached": {
+          "precision": 0.9722,
+          "recall": 0.9722,
+          "f1": 0.9722,
+          "support": 72
+        },
+        "Dead": {
+          "precision": 1.0,
+          "recall": 0.8,
+          "f1": 0.8889,
+          "support": 15
+        }
+      },
+      "description": "Single model + TTA",
+      "num_seeds": 1,
+      "tta": true
+    },
+    {
+      "config": "C",
+      "accuracy": 96.86,
+      "total_errors": 5,
+      "total_correct": 154,
+      "macro_f1": 0.9493,
+      "mean_conf_correct": 90.11,
+      "mean_conf_wrong": 55.28,
+      "confidence_gap": 34.82,
+      "stability_flips_vs_5seed": 2,
+      "per_class": {
+        "Healthy": {
+          "precision": 0.973,
+          "recall": 1.0,
+          "f1": 0.9863,
+          "support": 72
+        },
+        "Bleached": {
+          "precision": 0.9718,
+          "recall": 0.9583,
+          "f1": 0.965,
+          "support": 72
+        },
+        "Dead": {
+          "precision": 0.9286,
+          "recall": 0.8667,
+          "f1": 0.8966,
+          "support": 15
+        }
+      },
+      "description": "2-seed ensemble, no TTA",
+      "num_seeds": 2,
+      "tta": false
+    },
+    {
+      "config": "D",
+      "accuracy": 96.23,
+      "total_errors": 6,
+      "total_correct": 153,
+      "macro_f1": 0.9423,
+      "mean_conf_correct": 90.13,
+      "mean_conf_wrong": 52.45,
+      "confidence_gap": 37.69,
+      "stability_flips_vs_5seed": 3,
+      "per_class": {
+        "Healthy": {
+          "precision": 0.9595,
+          "recall": 0.9861,
+          "f1": 0.9726,
+          "support": 72
+        },
+        "Bleached": {
+          "precision": 0.9589,
+          "recall": 0.9722,
+          "f1": 0.9655,
+          "support": 72
+        },
+        "Dead": {
+          "precision": 1.0,
+          "recall": 0.8,
+          "f1": 0.8889,
+          "support": 15
+        }
+      },
+      "description": "2-seed ensemble + TTA",
+      "num_seeds": 2,
+      "tta": true
+    },
+    {
+      "config": "E",
+      "accuracy": 98.11,
+      "total_errors": 3,
+      "total_correct": 156,
+      "macro_f1": 0.9769,
+      "mean_conf_correct": 89.38,
+      "mean_conf_wrong": 51.28,
+      "confidence_gap": 38.1,
+      "stability_flips_vs_5seed": 0,
+      "per_class": {
+        "Healthy": {
+          "precision": 0.973,
+          "recall": 1.0,
+          "f1": 0.9863,
+          "support": 72
+        },
+        "Bleached": {
+          "precision": 0.9859,
+          "recall": 0.9722,
+          "f1": 0.979,
+          "support": 72
+        },
+        "Dead": {
+          "precision": 1.0,
+          "recall": 0.9333,
+          "f1": 0.9655,
+          "support": 15
+        }
+      },
+      "description": "3-seed ensemble, no TTA",
+      "num_seeds": 3,
+      "tta": false
+    },
+    {
+      "config": "F",
+      "accuracy": 97.48,
+      "total_errors": 4,
+      "total_correct": 155,
+      "macro_f1": 0.9624,
+      "mean_conf_correct": 89.46,
+      "mean_conf_wrong": 48.05,
+      "confidence_gap": 41.42,
+      "stability_flips_vs_5seed": 1,
+      "per_class": {
+        "Healthy": {
+          "precision": 0.973,
+          "recall": 1.0,
+          "f1": 0.9863,
+          "support": 72
+        },
+        "Bleached": {
+          "precision": 0.9722,
+          "recall": 0.9722,
+          "f1": 0.9722,
+          "support": 72
+        },
+        "Dead": {
+          "precision": 1.0,
+          "recall": 0.8667,
+          "f1": 0.9286,
+          "support": 15
+        }
+      },
+      "description": "3-seed ensemble + TTA",
+      "num_seeds": 3,
+      "tta": true
+    },
+    {
+      "config": "G",
+      "accuracy": 98.11,
+      "total_errors": 3,
+      "total_correct": 156,
+      "macro_f1": 0.9769,
+      "mean_conf_correct": 89.22,
+      "mean_conf_wrong": 53.25,
+      "confidence_gap": 35.97,
+      "stability_flips_vs_5seed": 0,
+      "per_class": {
+        "Healthy": {
+          "precision": 0.973,
+          "recall": 1.0,
+          "f1": 0.9863,
+          "support": 72
+        },
+        "Bleached": {
+          "precision": 0.9859,
+          "recall": 0.9722,
+          "f1": 0.979,
+          "support": 72
+        },
+        "Dead": {
+          "precision": 1.0,
+          "recall": 0.9333,
+          "f1": 0.9655,
+          "support": 15
+        }
+      },
+      "description": "5-seed ensemble, no TTA (canonical)",
+      "num_seeds": 5,
+      "tta": false
+    },
+    {
+      "config": "H",
+      "accuracy": 98.11,
+      "total_errors": 3,
+      "total_correct": 156,
+      "macro_f1": 0.9769,
+      "mean_conf_correct": 89.09,
+      "mean_conf_wrong": 48.02,
+      "confidence_gap": 41.07,
+      "stability_flips_vs_5seed": 2,
+      "per_class": {
+        "Healthy": {
+          "precision": 0.973,
+          "recall": 1.0,
+          "f1": 0.9863,
+          "support": 72
+        },
+        "Bleached": {
+          "precision": 0.9859,
+          "recall": 0.9722,
+          "f1": 0.979,
+          "support": 72
+        },
+        "Dead": {
+          "precision": 1.0,
+          "recall": 0.9333,
+          "f1": 0.9655,
+          "support": 15
+        }
+      },
+      "description": "5-seed ensemble + TTA (full pipeline)",
+      "num_seeds": 5,
+      "tta": true
+    }
+  ]
+}

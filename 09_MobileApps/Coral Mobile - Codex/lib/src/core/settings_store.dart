@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsStore {
-  static const defaultBackendUrl = kIsWeb ? 'http://localhost:5000' : 'http://10.0.2.2:5000';
+  static const defaultBackendUrl = kIsWeb ? 'http://localhost:5000' : 'https://coralhealth.systems';
   static const _backendUrlKey = 'backend_base_url';
 
   Future<String> getBackendUrl() async {

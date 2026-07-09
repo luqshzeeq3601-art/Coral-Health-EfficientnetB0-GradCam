@@ -14,7 +14,7 @@ class AssessmentStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     const steps = [
       _StepMeta(AssessmentStep.upload, Icons.cloud_upload_rounded, 'Upload', AppRoutes.upload),
-      _StepMeta(AssessmentStep.configure, Icons.tune_rounded, 'Configure', AppRoutes.configure),
+      _StepMeta(AssessmentStep.configure, Icons.tune_rounded, 'Config', AppRoutes.configure),
       _StepMeta(AssessmentStep.analyze, Icons.psychology_rounded, 'Analyze', AppRoutes.analyze),
       _StepMeta(AssessmentStep.result, Icons.check_rounded, 'Result', AppRoutes.result),
     ];

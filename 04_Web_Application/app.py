@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory
 import os
 import io
 import numpy as np
@@ -177,7 +177,7 @@ def numpy_to_base64(img_array):
     _, buffer = cv2.imencode('.png', img_bgr)
     return base64.b64encode(buffer).decode('utf-8')
 
-app = Flask(__name__, static_folder='static', template_folder='templates')
+app = Flask(__name__, static_folder='static')
 
 @app.after_request
 def add_cors_headers(response):
@@ -682,23 +682,6 @@ def home():
 @app.route('/coral_health')
 def coral_health():
     return _send_index()
-
-@app.route('/design9')
-def design9_legacy():
-    # Previous production template, kept reachable for reference.
-    return render_template('design9.html')
-
-# Note: routes /design10 and /design11 are commented out as design10.html and design11.html
-# templates are not present in the codebase.
-#
-# @app.route('/design10')
-# def design10():
-#     return render_template('design10.html')
-#
-# @app.route('/design11')
-# def design11():
-#     return render_template('design11.html')
-
 
 @app.route('/<path:filename>')
 def frontend_assets(filename):

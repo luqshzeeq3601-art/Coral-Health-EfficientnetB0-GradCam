@@ -16,38 +16,38 @@ gantt
 
     section Phase 1: Foundation
     FYP2 Briefing & Setup               :done,    p1_1, 2026-03-16, 7d
-    Dataset Audit & Split Prep           :active,  p1_2, 2026-03-23, 7d
+    Dataset Audit & Split Prep           :done,    p1_2, 2026-03-23, 7d
 
     section Phase 2: Model Development
-    Data Augmentation & Preprocessing    :         p2_1, 2026-03-30, 7d
-    EfficientNetB0 Baseline Training     :         p2_2, 2026-04-06, 7d
-    SWA Multi-Seed Training (5 seeds)    :         p2_3, 2026-04-20, 7d
-    TTA & Temperature Calibration        :         p2_4, 2026-04-27, 7d
+    Data Augmentation & Preprocessing    :done,    p2_1, 2026-03-30, 7d
+    EfficientNetB0 Baseline Training     :done,    p2_2, 2026-04-06, 7d
+    SWA Multi-Seed Training (5 seeds)    :done,    p2_3, 2026-04-20, 7d
+    TTA & Temperature Calibration        :done,    p2_4, 2026-04-27, 7d
     98.11% Accuracy Achieved             :milestone, m_acc, 2026-05-03, 0d
 
     section Phase 3: Evaluation & XAI
-    Model Evaluation & Metrics           :         p3_1, 2026-05-04, 7d
+    Model Evaluation & Metrics           :done,    p3_1, 2026-05-04, 7d
     Progress Report 1 Submission         :milestone, m_pr1, 2026-05-10, 0d
-    Grad-CAM XAI Implementation          :         p3_2, 2026-05-11, 7d
+    Grad-CAM XAI Implementation          :done,    p3_2, 2026-05-11, 7d
 
     section Phase 4: Web Application
-    Flask Backend Development            :         p4_1, 2026-05-18, 7d
-    Frontend UI/UX (design8.html)        :         p4_2, 2026-05-25, 7d
-    System Integration & Testing         :         p4_3, 2026-06-01, 7d
+    Flask Backend Development            :done,    p4_1, 2026-05-18, 7d
+    Frontend UI/UX (design8.html)        :done,    p4_2, 2026-05-25, 7d
+    System Integration & Testing         :done,    p4_3, 2026-06-01, 7d
 
     section Phase 5: Reports & Viva
     Progress Report 2 Submission         :milestone, m_pr2, 2026-06-08, 0d
-    Talk 4: Presentation Skills          :         p5_0, 2026-06-08, 7d
-    Full Report Writing                  :         p5_1, 2026-06-15, 14d
+    Talk 4: Presentation Skills          :done,    p5_0, 2026-06-08, 7d
+    Full Report Writing                  :active,  p5_1, 2026-06-15, 14d
     Full Report Deadline (26 Jun)        :milestone, m_fr, 2026-06-26, 0d
     Viva Presentation                    :crit,    p5_2, 2026-06-29, 7d
     Final Report & TOC Submission        :         p5_3, 2026-07-06, 7d
     Final Deadline (12 Jul)              :milestone, m_final, 2026-07-12, 0d
 
     section Talks & Events
-    Talk 1: Intro & Plagiarism           :         t1, 2026-04-06, 7d
-    Talk 2: Result Analysis              :         t2, 2026-04-20, 7d
-    Talk 3: ChatGPT & AI Tools          :         t3, 2026-04-27, 7d
+    Talk 1: Intro & Plagiarism           :done,    t1, 2026-04-06, 7d
+    Talk 2: Result Analysis              :done,    t2, 2026-04-20, 7d
+    Talk 3: ChatGPT & AI Tools          :done,    t3, 2026-04-27, 7d
 ```
 
 ---
@@ -114,5 +114,5 @@ gantt
 ## FYP 2: Implementation & Deployment Visual
 ![FYP 2 Gantt Chart](fyp2_gantt.png)
 
-*Latest Version: 2 April 2026*  
+*Latest Version: 24 June 2026*  
 *Generated via custom Matplotlib script*

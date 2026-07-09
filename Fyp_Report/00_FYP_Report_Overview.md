@@ -13,11 +13,12 @@
 
 | Chapter | Title | File |
 |---------|-------|------|
-| 1 | Introduction | [Chapter1_Introduction.md](Chapter1_Introduction.md) |
+| 1 | Introduction | [01_Chapter1_Introduction.md](Chapters/01_Chapter1_Introduction.md) |
 | 2 | Literature Review | *(To be drafted)* |
-| 3 | Methodology | [01_Methodology.md](01_Methodology.md) |
-| 4 | Results & Discussion | *(To be drafted — figures ready in `Efficientnet base vs Ensemble`)* |
-| 5 | Conclusion & Future Work | *(To be drafted)* |
+| 3 | Methodology | [03_Chapter3_Methodology.md](Chapters/03_Chapter3_Methodology.md) |
+| 4 | Results | [04_Chapter4_Results.md](Chapters/04_Chapter4_Results.md) |
+| 4 | Discussion | [05_Chapter4_Discussion.md](Chapters/05_Chapter4_Discussion.md) |
+| 5 | Conclusion & Future Work | [06_Chapter5_Conclusion.md](Chapters/06_Chapter5_Conclusion.md) |
 
 ---
 
@@ -28,9 +29,8 @@ All report chapters must reference the following verified benchmark. No retraini
 | Item | Value |
 |------|------:|
 | Architecture | EfficientNetB0 (ImageNet pretrained) |
-| Ensemble Strategy | 5-seed SWA (seeds 42–46) |
+| Training Strategy | Hard-Example Oversampling + 5-seed SWA |
 | Inference Strategy | Multi-Scale TTA (224 + 256, original + H-flip) |
-| Calibration | Temperature Scaling (T = 0.441) |
 | Input Resolution | 224 × 224 × 3 RGB |
 | Test Accuracy | **98.11%** |
 | Test Samples | 159 |
@@ -53,9 +53,9 @@ All report chapters must reference the following verified benchmark. No retraini
 
 - **Dataset:** BHD Coral Dataset sourced from Kaggle, comprising 795 images across three classes — Healthy, Bleached, and Dead.
 - **Classification:** Multi-class image classification using a pretrained EfficientNetB0 backbone with transfer learning.
-- **Ensemble:** Five independently seeded models (seeds 42–46) trained with Stochastic Weight Averaging (SWA) and combined via prediction averaging.
-- **Inference Enhancement:** Multi-Scale Test-Time Augmentation (TTA) at 224 × 224 and 256 × 256 resolutions with horizontal flip, coupled with Temperature Scaling (T = 0.441) for confidence calibration.
-- **Explainability:** Grad-CAM visualisation using the JET colourmap to highlight discriminative regions in coral images.
+- **Robust Training:** Combines Hard-Example Oversampling for dataset balancing with Stochastic Weight Averaging (SWA) over five independently seeded models (seeds 42–46).
+- **Inference Enhancement:** Multi-Scale Test-Time Augmentation (TTA) at 224 × 224 and 256 × 256 resolutions with horizontal flip to ensure orientation and scale invariance.
+- **Explainability:** Grad-CAM visualisation to highlight discriminative regions in coral images.
 - **Deployment:** A locally hosted Flask web application featuring drag-and-drop image upload, real-time classification, confidence scoring, and Grad-CAM overlay display.
 - **Hardware:** Training performed on NVIDIA RTX 3070 GPU with CUDA and cuDNN acceleration.
 - **Exclusions:** No real-time video analysis, no live data collection, no private or proprietary datasets, no species-level identification, and no disease diagnosis beyond the defined three-class taxonomy.
@@ -67,9 +67,9 @@ All report chapters must reference the following verified benchmark. No retraini
 | Aspect | FYP 1 (Original) | FYP 2 (Updated) |
 |--------|------------------|-----------------|
 | Model | Generic CNN (unspecified) | EfficientNetB0 (ImageNet pretrained) |
-| Training | Single model, single seed | 5-seed SWA ensemble |
-| Inference | Standard forward pass | Multi-Scale TTA + Temperature Scaling |
-| Explainability | "Visual explanation method" (unspecified) | Grad-CAM with JET colourmap |
+| Training | Single model, single seed | Hard-Example Oversampling + 5-seed SWA ensemble |
+| Inference | Standard forward pass | Multi-Scale TTA |
+| Explainability | "Visual explanation method" (unspecified) | Grad-CAM |
 | Deployment | Not in scope | Flask web app with live inference & Grad-CAM |
 | Objective 4 | Not present | Added: web-based deployment objective |
 | Accuracy Target | Not specified | Achieved 98.11% on 159-image test set |

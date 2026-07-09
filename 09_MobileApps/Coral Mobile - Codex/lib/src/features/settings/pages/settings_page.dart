@@ -363,7 +363,7 @@ class _ConnectionCard extends StatelessWidget {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Make sure "run coral ai.bat" is running on your laptop to accept connections.',
+                              'Make sure "run coral ai.bat" is running on localhost to accept connections.',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
@@ -436,14 +436,14 @@ class _ConnectionCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   _PresetChip(
-                    label: 'Laptop',
+                    label: 'Localhost',
                     url: 'http://192.168.0.8:5000',
                     controller: controller,
                     currentValue: value.text,
                   ),
                   _PresetChip(
-                    label: 'Emulator',
-                    url: 'http://10.0.2.2:5000',
+                    label: 'Cloudflare',
+                    url: 'https://coralhealth.systems',
                     controller: controller,
                     currentValue: value.text,
                   ),

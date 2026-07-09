@@ -10,7 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  google_fonts: ^8.1.0
   http: ^1.2.2
   image_picker: ^1.2.2
   shared_preferences: ^2.3.2
@@ -37,3 +36,16 @@ flutter:
     - assets/images/
     - assets/reference_screens/
     - assets/models/
+  fonts:
+    # Bundled locally (variable fonts) so the app never fetches fonts at
+    # runtime. The wght axis covers every weight the UI requests
+    # (Inter 400/500, Rethink Sans 800, JetBrains Mono 700/800).
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+    - family: Rethink Sans
+      fonts:
+        - asset: assets/fonts/RethinkSans-Variable.ttf
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Variable.ttf

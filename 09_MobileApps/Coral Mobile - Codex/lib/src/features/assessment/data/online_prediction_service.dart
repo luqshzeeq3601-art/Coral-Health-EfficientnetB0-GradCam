@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
 import '../models/assessment_models.dart';
+import 'circuit_breaker.dart';
 
 /// Creates an [http.Client] with extended idle/connection timeouts so that
 /// long-running ensemble predictions don't get killed by the default 15-second
@@ -25,13 +26,20 @@ class OnlinePredictionService {
     required String backendBaseUrl,
     http.Client? client,
     AssetBundle? assetBundle,
+    CircuitBreaker? circuitBreaker,
   })  : _backendBaseUrl = backendBaseUrl,
         _client = client ?? _createRobustClient(),
-        _assetBundle = assetBundle ?? rootBundle;
+        _assetBundle = assetBundle ?? rootBundle,
+        _breaker = circuitBreaker ?? _sharedBreaker;
+
+  /// Shared across the per-request service instances so failure state persists
+  /// between calls. Tests can inject their own via [circuitBreaker].
+  static final CircuitBreaker _sharedBreaker = CircuitBreaker();
 
   final String _backendBaseUrl;
   final http.Client _client;
   final AssetBundle _assetBundle;
+  final CircuitBreaker _breaker;
 
   Uri _uri(String path) => Uri.parse('$_backendBaseUrl$path');
 
@@ -56,20 +64,40 @@ class OnlinePredictionService {
     required AssessmentConfig config,
     Duration timeout = const Duration(seconds: 120),
   }) async {
+    // Fail fast if the backend has been unreachable: queuing another request
+    // that will just time out is exactly what freezes the flow.
+    if (_breaker.isOpen) {
+      throw PredictionServiceException(
+        'Backend unreachable after repeated failures. Retry in '
+        '${_breaker.remainingCooldown.inSeconds}s or switch to offline mode.',
+      );
+    }
+
     // Allow one automatic retry for transient connection errors (e.g. socket
     // closed by the emulator's virtual network adapter during a long inference).
     const maxAttempts = 2;
 
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        return await _sendPrediction(image: image, config: config, timeout: timeout);
+        final result =
+            await _sendPrediction(image: image, config: config, timeout: timeout);
+        _breaker.recordSuccess();
+        return result;
+      } on PredictionServiceException {
+        // The backend responded (non-2xx with an error body). It is reachable,
+        // so keep the circuit closed and surface the error to the caller.
+        _breaker.recordSuccess();
+        rethrow;
       } catch (e) {
+        // No response: timeout / socket / client error — the failures the
+        // breaker exists to short-circuit.
         final isTransient = e is http.ClientException || e is SocketException;
         if (attempt < maxAttempts && isTransient) {
           debugPrint('[OnlinePredictionService] Attempt $attempt failed ($e), retrying…');
           await Future.delayed(const Duration(seconds: 1));
           continue;
         }
+        _breaker.recordFailure();
         rethrow;
       }
     }
