@@ -39,7 +39,7 @@ The project provides **Explainable AI (XAI)** through Grad-CAM heatmap overlays,
 - **Temperature Calibration** — Calibrated confidence scores for reliable probability estimates
 - **Web Application** — React SPA served via Flask with real-time prediction and chatbot assistant
 - **Mobile Application** — Flutter-based cross-platform app for on-field coral assessment
-- **ReefGuide Chatbot** — AI assistant powered by Gemini 2.5 Flash for coral health guidance
+- **ReefGuide Chatbot** — AI assistant powered by Ollama (Qwen2.5:3b) with a rule-based fallback for coral health guidance
 
 ---
 
@@ -48,7 +48,9 @@ The project provides **Explainable AI (XAI)** through Grad-CAM heatmap overlays,
 ### Prerequisites
 
 - **Python 3.10+** with pip
-- **Node.js 18+** (only if rebuilding the frontend)
+- **Ollama** (optional, for local AI chatbot support)
+  - Install Ollama from [ollama.com](https://ollama.com) and run: `ollama pull qwen2.5:3b`
+- **Node.js 18+** (optional, only if rebuilding the React frontend from external source)
 
 ### Installation & Launch
 
@@ -69,16 +71,25 @@ source .venv/bin/activate
 # 4. Install dependencies
 pip install -r 04_Web_Application/requirements.txt
 
-# 5. (Optional) Set Gemini API key for chatbot
-set GEMINI_API_KEY=your_key_here      # Windows
-export GEMINI_API_KEY=your_key_here   # macOS/Linux
+# 5. (Optional) Start Ollama for Chatbot
+# Ensure Ollama is running and has downloaded the model:
+# ollama run qwen2.5:3b
 
 # 6. Launch the web application
 python 04_Web_Application/app.py
 # → Opens at http://localhost:5000
 ```
 
-**Windows shortcut:** Double-click `run_coral_ai.bat` in the project root — it auto-detects Python, starts the server, and opens the browser.
+**Windows shortcut:** Double-click `run_coral_ai.bat` in the project root — it auto-detects Python, checks for the built frontend, starts the Flask server, and automatically opens your browser.
+
+> [!NOTE]
+> The React frontend is pre-built and served directly from `04_Web_Application/frontend/`. You do **not** need to install Node.js or rebuild the frontend to run the application.
+
+### Public Deployment via Cloudflare Tunnel
+For staging or public sharing, the repository includes configuration files for a Cloudflare Tunnel:
+1. Ensure `cloudflared` is installed on your system.
+2. Configure your domain mappings in [cloudflared-coral.yml](file:///c:/Users/ZeeqRyz/Desktop/Coral%20Health%20AI/BASEPROJECT/cloudflared-coral.yml).
+3. Double-click [start_coral_app.bat](file:///c:/Users/ZeeqRyz/Desktop/Coral%20Health%20AI/BASEPROJECT/start_coral_app.bat) to launch the Flask app and the tunnel concurrently.
 
 ---
 
@@ -133,7 +144,7 @@ Coral-Health-EfficientnetB0-GradCam/
 | EfficientNet-B0 | CNN backbone architecture |
 | Stochastic Weight Averaging (SWA) | Model weight stabilization |
 | Grad-CAM | Explainable AI heatmaps |
-| Gemini 2.5 Flash | AI chatbot (ReefGuide) |
+| Ollama / Qwen2.5:3b | AI chatbot (ReefGuide) with Python fallback |
 
 ### Web Application
 
