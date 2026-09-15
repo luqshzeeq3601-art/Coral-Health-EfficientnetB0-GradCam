@@ -5,7 +5,7 @@
 <h1 align="center">🪸 Coral Reef Health Assessment via CNN-Based Image Analysis</h1>
 
 <p align="center">
-  <strong>EfficientNet-B0 Ensemble · Grad-CAM Explainability · Flask Web App · Flutter Mobile App</strong>
+  <strong>EfficientNet-B0 Ensemble · Grad-CAM Explainability · Flask Web App</strong>
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
 
 ## 📖 About
 
-This is a **Final Year Project (FYP)** that uses deep learning to classify coral reef health conditions from underwater images. The system classifies coral images into three categories:
+A deep learning system that classifies coral reef health conditions from underwater images using an ensemble of EfficientNet-B0 models with **Explainable AI (XAI)** through Grad-CAM heatmap overlays.
 
 | Class | Description |
 |---|---|
@@ -27,7 +27,7 @@ This is a **Final Year Project (FYP)** that uses deep learning to classify coral
 | 🟡 **Bleached** | Coral undergoing bleaching stress |
 | 🔴 **Dead** | Dead coral covered in algae or sediment |
 
-The project provides **Explainable AI (XAI)** through Grad-CAM heatmap overlays, allowing users to visualize *why* the model made its prediction — making it trustworthy and interpretable for marine researchers.
+Grad-CAM visualizations allow users to see *which image regions* influenced each prediction — making the system trustworthy and interpretable for marine researchers.
 
 ---
 
@@ -38,7 +38,6 @@ The project provides **Explainable AI (XAI)** through Grad-CAM heatmap overlays,
 - **Grad-CAM Heatmaps** — Visual explanations highlighting which image regions influenced the prediction
 - **Temperature Calibration** — Calibrated confidence scores for reliable probability estimates
 - **Web Application** — React SPA served via Flask with real-time prediction and chatbot assistant
-- **Mobile Application** — Flutter-based cross-platform app for on-field coral assessment
 - **ReefGuide Chatbot** — AI assistant powered by Ollama (Qwen2.5:3b) with a rule-based fallback for coral health guidance
 
 ---
@@ -50,7 +49,6 @@ The project provides **Explainable AI (XAI)** through Grad-CAM heatmap overlays,
 - **Python 3.10+** with pip
 - **Ollama** (optional, for local AI chatbot support)
   - Install Ollama from [ollama.com](https://ollama.com) and run: `ollama pull qwen2.5:3b`
-- **Node.js 18+** (optional, only if rebuilding the React frontend from external source)
 
 ### Installation & Launch
 
@@ -85,12 +83,6 @@ python 04_Web_Application/app.py
 > [!NOTE]
 > The React frontend is pre-built and served directly from `04_Web_Application/frontend/`. You do **not** need to install Node.js or rebuild the frontend to run the application.
 
-### Public Deployment via Cloudflare Tunnel
-For staging or public sharing, the repository includes configuration files for a Cloudflare Tunnel:
-1. Ensure `cloudflared` is installed on your system.
-2. Configure your domain mappings in [cloudflared-coral.yml](file:///c:/Users/ZeeqRyz/Desktop/Coral%20Health%20AI/BASEPROJECT/cloudflared-coral.yml).
-3. Double-click [start_coral_app.bat](file:///c:/Users/ZeeqRyz/Desktop/Coral%20Health%20AI/BASEPROJECT/start_coral_app.bat) to launch the Flask app and the tunnel concurrently.
-
 ---
 
 ## 📁 Project Structure
@@ -119,16 +111,9 @@ Coral-Health-EfficientnetB0-GradCam/
 │
 ├── 06_XAI_Decision_Comparison/      # Explainable AI analysis tools
 │
-├── 08_Upex_Coral/                   # UPEX poster & presentation materials
-│
-├── 09_MobileApps/                   # Flutter mobile application
-│   └── Coral Mobile - Codex/       #   Flutter project source
-│
 ├── FYP_Planning/                    # Gantt charts & milestone tracking
-├── Fyp_Report/                      # Report chapters & viva materials
 │
 ├── run_coral_ai.bat                 # One-click local launcher (Windows)
-├── start_coral_app.bat              # Public deployment via Cloudflare Tunnel
 └── README.md                        # This file
 ```
 
@@ -155,13 +140,6 @@ Coral-Health-EfficientnetB0-GradCam/
 | Vite | Build tool |
 | Tailwind CSS v4 | Styling |
 | GSAP + Framer Motion | Animations |
-
-### Mobile Application
-
-| Technology | Purpose |
-|---|---|
-| Flutter / Dart | Cross-platform mobile framework |
-| TFLite | On-device inference |
 
 ---
 
@@ -205,8 +183,7 @@ The Flask backend exposes the following REST API:
 │  │  ├── Model Workflow Visualization  │  │
 │  │  ├── Validation Benchmarks         │  │
 │  │  ├── Try Model (Upload → Predict)  │  │
-│  │  ├── ReefGuide Chatbot             │  │
-│  │  └── Mobile App Showcase           │  │
+│  │  └── ReefGuide Chatbot             │  │
 │  └──────────────┬─────────────────────┘  │
 │                 │ fetch("/api/*")         │
 └─────────────────┼────────────────────────┘
@@ -226,12 +203,11 @@ The Flask backend exposes the following REST API:
 ## 👤 Author
 
 **Muhammad Luqman Haziq Bin Mohamad Lofi**
-- 🎓 Student, Computer Engineering — UniMAP
-- 📧 s221022249@studentmail.unimap.edu.my
+- 🎓 Computer Engineering — Universiti Malaysia Perlis (UniMAP)
 - 🔗 [GitHub Profile](https://github.com/luqshzeeq3601-art)
 
 ---
 
 ## 📝 License
 
-This project is developed as part of a Final Year Project (FYP) at Universiti Malaysia Perlis (UniMAP). All rights reserved.
+This project was developed as academic research at Universiti Malaysia Perlis (UniMAP). All rights reserved.
